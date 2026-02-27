@@ -103,7 +103,9 @@ class MomentumTracker:
                 self._state.streak_length = 1
                 self._state.streak_type = "loss"
 
-        # Compute multiplier with decay
+        # DESIGN: gap=0 for consecutive rounds → decay=1.0 (no dampening within a half).
+        # Momentum persists fully round-to-round; decay only applies to skipped rounds.
+        # This is intentional: half-switch resets (L116) handle cross-half dampening.
         decay = math.exp(-self._state.decay_rate * gap)
         streak = self._state.streak_length
 

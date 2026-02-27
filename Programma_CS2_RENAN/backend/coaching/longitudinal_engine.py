@@ -1,5 +1,19 @@
-def generate_longitudinal_coaching(trends, nn_signals):
-    insights = []
+"""
+Longitudinal Coaching Engine
+
+Generates trend-aware coaching insights by comparing a player's performance
+trajectory across multiple sessions against NN stability signals.
+"""
+
+from typing import Any, Dict, List
+
+from Programma_CS2_RENAN.observability.logger_setup import get_logger
+
+logger = get_logger("cs2analyzer.coaching.longitudinal")
+
+
+def generate_longitudinal_coaching(trends: List[Any], nn_signals: Dict[str, Any]) -> List[Dict]:
+    insights: List[Dict] = []
     for t in trends:
         if t.confidence >= 0.6:
             _process_trend(t, nn_signals, insights)

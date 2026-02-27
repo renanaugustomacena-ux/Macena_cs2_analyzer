@@ -1,5 +1,18 @@
-def apply_nn_refinement(corrections, nn_adjustments):
-    refined = []
+"""
+NN Refinement
+
+Applies neural-network weight adjustments to pre-computed coaching corrections,
+scaling each correction's weighted Z-score by the NN-suggested feature weight.
+"""
+
+from typing import Any, Dict, List
+
+
+def apply_nn_refinement(
+    corrections: List[Dict[str, Any]],
+    nn_adjustments: Dict[str, float],
+) -> List[Dict[str, Any]]:
+    refined: List[Dict[str, Any]] = []
 
     for c in corrections:
         feature = c["feature"]

@@ -282,7 +282,8 @@ class ExpectiminimaxSearch:
 
             child_state = self._apply_action(node.state, action, is_max=False)
             child = GameNode(node_type="max", state=child_state, action=action)
-            child.value = prob  # Temporarily store probability in value
+            # NOTE: value temporarily holds opponent probability here; overwritten by minimax evaluation
+            child.value = prob
             node.children.append(child)
             self._nodes_created += 1
             self._expand(child, depth - 1, is_max=True)
@@ -295,6 +296,10 @@ class ExpectiminimaxSearch:
         """
         new_state = dict(state)
 
+        # DESIGN: push is modeled as symmetric (both sides lose 1 player + map shift).
+        # CS2 reality has aggressor advantage (peekers) vs crosshair advantage (defenders).
+        # This simplification is acceptable — WinProbabilityPredictor at leaf nodes
+        # provides the fine-grained asymmetric correction.
         if action == "push":
             # Aggressive: may gain map control but risks players
             if is_max:
@@ -376,6 +381,25 @@ class ExpectiminimaxSearch:
             if enemy == 0:
                 return 1.0
             return alive / (alive + enemy)
+
+    def evaluate_single_action(self, state: Dict, action: str) -> float:
+        """
+        Public API: evaluate a single action from the given game state.
+
+        Replaces direct calls to the private _apply_action / _evaluate_leaf
+        methods from external modules (F4-03). Using the public wrapper means
+        external callers are insulated from internal refactors of those private
+        methods.
+
+        Args:
+            state: Current game state dict.
+            action: One of "push", "hold", "rotate", "use_utility".
+
+        Returns:
+            Estimated win probability [0, 1] for this action.
+        """
+        new_state = self._apply_action(state, action, is_max=True)
+        return self._evaluate_leaf(new_state)
 
     def get_best_action(self, root: GameNode) -> Tuple[str, float]:
         """

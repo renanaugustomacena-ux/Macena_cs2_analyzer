@@ -1,3 +1,5 @@
+from typing import Any, Dict, List, Optional
+
 from Programma_CS2_RENAN.core.config import get_setting
 
 # Default feature importance weights for coaching prioritisation
@@ -21,7 +23,21 @@ def get_feature_importance(feature):
 CONFIDENCE_ROUNDS_CEILING = 300
 
 
-def generate_corrections(deviations, rounds_played, nn_adjustments=None):
+def generate_corrections(
+    deviations: Dict[str, float],
+    rounds_played: int,
+    nn_adjustments: Optional[Dict[str, float]] = None,
+) -> List[Dict[str, Any]]:
+    """Generate top-3 weighted corrections from Z-score deviations.
+
+    Args:
+        deviations: Mapping of feature name to Z-score (float) or (z_score, raw_dev) tuple.
+        rounds_played: Number of rounds used for confidence scaling.
+        nn_adjustments: Optional NN weight adjustments keyed by ``{feature}_weight``.
+
+    Returns:
+        Up to 3 corrections sorted by weighted importance, highest first.
+    """
     confidence = min(1.0, rounds_played / CONFIDENCE_ROUNDS_CEILING)
     corrections = []
 

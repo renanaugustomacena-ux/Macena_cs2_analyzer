@@ -386,6 +386,10 @@ class EngagementRangeAnalyzer:
         annotated = []
 
         for ev in kill_events:
+            required = ("killer_x", "killer_y", "victim_x", "victim_y")
+            if not all(k in ev for k in required):
+                logger.warning("Skipping kill event missing coordinates: %s", list(ev.keys()))
+                continue
             dist = self.compute_kill_distance(
                 ev.get("killer_x", 0),
                 ev.get("killer_y", 0),

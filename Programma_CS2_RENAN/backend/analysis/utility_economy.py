@@ -146,7 +146,8 @@ class UtilityAnalyzer:
             UtilityType.FLASH: "Coordinate flashes with entry. Aim for 1+ enemy per flash.",
             UtilityType.SMOKE: "Use all smokes each round. Learn 3+ lineups per map.",
         }
-        return f"💡 {util_type.value.title()}: {recommendations.get(util_type, 'Improve utility usage')}"
+        # Emoji stripped — presentation is UI concern
+        return f"{util_type.value.title()}: {recommendations.get(util_type, 'Improve utility usage')}"
 
     def _calculate_economy_impact(self, utility_stats: Dict) -> float:
         """Calculate dollar value of utility efficiency."""
@@ -350,9 +351,10 @@ def get_economy_optimizer() -> EconomyOptimizer:
 
 if __name__ == "__main__":
     # Self-tests
-    print("=== Utility Analyzer Test ===\n")
+    logger.info("=== Utility Analyzer Test ===")
 
     analyzer = UtilityAnalyzer()
+    # NOTE: Synthetic values for self-test only — not representative of real match data.
     stats = {
         "molotov_thrown": 10,
         "molotov_damage": 280,
@@ -365,11 +367,11 @@ if __name__ == "__main__":
     }
 
     report = analyzer.analyze(stats)
-    print(f"Overall Utility Score: {report.overall_score:.0%}")
-    print(f"Economy Impact: ${report.economy_impact:.0f}")
-    print(f"Recommendations: {len(report.recommendations)}\n")
+    logger.info("Overall Utility Score: %.0f%%", report.overall_score * 100)
+    logger.info("Economy Impact: $%.0f", report.economy_impact)
+    logger.info("Recommendations: %s", len(report.recommendations))
 
-    print("=== Economy Optimizer Test ===\n")
+    logger.info("=== Economy Optimizer Test ===")
 
     optimizer = EconomyOptimizer()
 
@@ -382,4 +384,4 @@ if __name__ == "__main__":
 
     for name, money, round_num, is_ct in scenarios:
         decision = optimizer.recommend(money, round_num, is_ct)
-        print(f"{name}: {decision.action} - {decision.reasoning}")
+        logger.info("%s: %s - %s", name, decision.action, decision.reasoning)

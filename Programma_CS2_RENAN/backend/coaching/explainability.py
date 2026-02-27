@@ -46,7 +46,7 @@ class ExplanationGenerator:
 
     @staticmethod
     def generate_narrative(
-        category: str, feature: str, delta: float, context: Dict = None, skill_level: int = 5
+        category: SkillAxes, feature: str, delta: float, context: Dict = None, skill_level: int = 5
     ) -> str:
         """
         Grounded Narrative Generation with Dynamic Context.

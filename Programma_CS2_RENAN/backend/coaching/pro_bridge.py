@@ -14,6 +14,8 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.pro_bridge")
 
+ESTIMATED_ROUNDS_PER_MATCH = 24.0
+
 
 class PlayerCardAssimilator:
     """
@@ -34,7 +36,6 @@ class PlayerCardAssimilator:
         This provides a "Contextual Pro Baseline" specific to this player.
         """
         # We start with the core stats stored directly on the card
-        ESTIMATED_ROUNDS_PER_MATCH = 24.0
         baseline = {
             "avg_kills": self.card.kpr * ESTIMATED_ROUNDS_PER_MATCH,
             "avg_deaths": self.card.dpr * ESTIMATED_ROUNDS_PER_MATCH,

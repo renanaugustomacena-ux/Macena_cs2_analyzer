@@ -20,6 +20,7 @@ logger = get_logger("cs2analyzer.analysis.deception")
 # Configurable detection windows (in seconds)
 FAKE_EXECUTE_WINDOW = 5.0  # Time window to detect site-take fakes
 UTILITY_FOLLOWUP_WINDOW = 3.0  # Time after utility for expected engagement
+FLASH_BLIND_WINDOW_TICKS: int = 128  # ~2 s at 64 tick
 
 # Composite index weights
 W_FAKE_FLASH = 0.25
@@ -98,7 +99,7 @@ class DeceptionAnalyzer:
 
         for _, flash in flashes.iterrows():
             flash_tick = flash["tick"]
-            window_end = flash_tick + 128  # ~2 seconds at 64 tick
+            window_end = flash_tick + FLASH_BLIND_WINDOW_TICKS
             nearby_blinds = blinds[(blinds["tick"] >= flash_tick) & (blinds["tick"] <= window_end)]
             if not nearby_blinds.empty:
                 effective_flashes += 1

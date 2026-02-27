@@ -8,7 +8,7 @@ Governance: Rule 1 §8.2 (Pattern-based weakness identification), Rule 3 §3.1 (
 """
 
 from collections import defaultdict
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Dict, List, Optional
 
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
@@ -37,9 +37,6 @@ class BlindSpotDetector:
     Detects strategic blind spots by comparing player actions to game tree
     optimal recommendations across historical rounds.
     """
-
-    # Situation classification thresholds
-    _SITUATION_RULES: Dict[str, callable] = {}
 
     def __init__(self):
         from Programma_CS2_RENAN.backend.analysis.game_tree import ExpectiminimaxSearch
@@ -164,9 +161,8 @@ class BlindSpotDetector:
         return "standard"
 
     def _evaluate_action(self, search, state: Dict, action: str) -> float:
-        """Evaluate a specific action by building a minimal tree."""
-        new_state = search._apply_action(state, action, is_max=True)
-        return search._evaluate_leaf(new_state)
+        """Evaluate a specific action via the game tree public API (F4-03)."""
+        return search.evaluate_single_action(state, action)
 
     def generate_training_plan(
         self,

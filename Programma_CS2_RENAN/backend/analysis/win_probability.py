@@ -195,6 +195,8 @@ class WinProbabilityPredictor:
         elif player_diff <= -3:
             prob = min(prob, 0.15)
 
+        # NOTE: prob may transiently exceed 1.0 here; clamped to [0,1] at the return statement.
+        # Do not add logic between here and the clamp.
         # Bomb planted adjustments
         if state.bomb_planted:
             if not state.is_ct:
@@ -284,4 +286,4 @@ if __name__ == "__main__":
 
     for scenario in scenarios:
         prob, explanation = predictor.predict(scenario["state"])
-        print(f"{scenario['name']}: {prob:.1%} - {explanation}")
+        logger.info("%s: %.1f%% - %s", scenario["name"], prob * 100, explanation)

@@ -9,7 +9,7 @@ Governance: Rule 1 §7.4 (Information-theoretic metrics), Rule 2 §8.2 (Quantita
 """
 
 from dataclasses import dataclass
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 import numpy as np
 
@@ -18,7 +18,7 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 logger = get_logger("cs2analyzer.analysis.entropy")
 
 # Theoretical max entropy reduction per utility type (in bits)
-_MAX_DELTA: dict[str, float] = {
+_MAX_DELTA: Dict[str, float] = {
     "smoke": 2.5,
     "flash": 1.8,
     "molotov": 2.0,

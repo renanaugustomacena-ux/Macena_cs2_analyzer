@@ -37,6 +37,11 @@ _WEAPON_LETHALITY: Dict[str, float] = {
     "unknown": 1.0,
 }
 
+# Maximum rows fetched from RoundStats for belief calibration (F4-01).
+# Prevents OOM when demo count grows into the thousands. 5 000 rounds
+# is sufficient for reliable empirical priors.
+MAX_CALIBRATION_SAMPLES: int = 5_000
+
 
 @dataclass
 class BeliefState:
@@ -238,7 +243,7 @@ class AdaptiveBeliefCalibrator:
         if "weapon_class" not in death_events.columns or len(death_events) < self.MIN_SAMPLES:
             return {}
 
-        deaths_only = death_events[death_events["died"] == True]
+        deaths_only = death_events[death_events["died"]]
         if deaths_only.empty:
             return {}
 
@@ -409,7 +414,7 @@ def extract_death_events_from_db() -> pd.DataFrame:
         rows = []
 
         with db.get_session("default") as session:
-            all_rounds = session.exec(select(RoundStats)).all()
+            all_rounds = session.exec(select(RoundStats).limit(MAX_CALIBRATION_SAMPLES)).all()
 
             for rs in all_rounds:
                 # HP bracket estimation from equipment value:

@@ -23,7 +23,7 @@ import numpy as np
 import torch
 
 from Programma_CS2_RENAN.backend.knowledge.rag_knowledge import KnowledgeRetriever
-from Programma_CS2_RENAN.backend.storage.database import get_db_manager, init_database
+from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import CoachingInsight, TacticalKnowledge
 from Programma_CS2_RENAN.core.config import get_setting
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
@@ -95,7 +95,9 @@ class HybridCoachingEngine:
             use_jepa: Use JEPA model (True) or AdvancedCoachNN (False).
                      If None, uses config setting.
         """
-        init_database()
+        # DB must be initialized at app startup before instantiating this class (F4-04).
+        # Calling init_database() here was a constructor side-effect that violated
+        # single-responsibility and made unit testing require live DB infrastructure.
         self.db = get_db_manager()
         self.retriever = KnowledgeRetriever()
 
@@ -106,7 +108,9 @@ class HybridCoachingEngine:
         self.use_jepa = use_jepa
         self.model = self._load_model()
 
-        # Pro baseline for deviation calculation
+        # Pro baseline for deviation calculation.
+        # _using_fallback_baseline is set True when get_pro_baseline() fails (F4-02).
+        self._using_fallback_baseline: bool = False
         self.pro_baseline = self._load_pro_baseline()
 
     def _load_model(self):
@@ -147,11 +151,15 @@ class HybridCoachingEngine:
             return baseline_data
         except Exception as e:
             logger.error(
-                f"Failed to load dynamic baseline: {e}. "
-                "Using HARDCODED fallback — coaching quality is DEGRADED."
+                "Failed to load dynamic baseline: %s. "
+                "Using HARDCODED fallback — coaching quality is DEGRADED.",
+                e,
             )
-            # Fallback only if module fails completely
-            # WARNING: These values are stale approximations, not from real data
+            # Fallback only if module fails completely.
+            # WARNING: These values are stale approximations, not from real data.
+            # _using_fallback_baseline=True causes insights to be tagged with
+            # baseline_quality="degraded" so callers can display a warning (F4-02).
+            self._using_fallback_baseline = True
             return {
                 "avg_kills": 0.78,
                 "avg_deaths": 0.62,
@@ -225,6 +233,17 @@ class HybridCoachingEngine:
             demo_name=demo_name,
             tick_data=tick_data or {},
         )
+
+        # Step 4b: Tag insights when the baseline is a stale hardcoded fallback (F4-02).
+        # Downstream callers (UI, CoachingService) can surface a "degraded baseline"
+        # warning instead of silently serving lower-quality advice.
+        if self._using_fallback_baseline:
+            for ins in insights:
+                ins.message = (
+                    ins.message
+                    + " [AVISO: baseline_quality=degraded — usando valores estáticos; "
+                    "precisão do coaching reduzida.]"
+                )
 
         # Step 5: Sort by priority and confidence
         insights.sort(key=lambda x: (-self._priority_value(x.priority), -x.confidence))
@@ -383,10 +402,11 @@ class HybridCoachingEngine:
 
             # Calculate confidence
             USAGE_COUNT_NORMALIZER = 100
-            knowledge_effectiveness = (
+            knowledge_effectiveness = min(
+                1.0,
                 np.mean([k.usage_count for k in matching_knowledge]) / USAGE_COUNT_NORMALIZER
                 if matching_knowledge
-                else 0
+                else 0,
             )
             confidence = self._calculate_confidence(z_score, knowledge_effectiveness)
 
@@ -419,7 +439,7 @@ class HybridCoachingEngine:
             if not any(self._feature_matches_category(f, k.category) for f in used_features):
                 insight = HybridInsight(
                     title=k.title,
-                    message=f"💡 {k.description}",
+                    message=k.description,  # Emoji stripped — presentation is UI concern
                     priority=InsightPriority.LOW,
                     confidence=0.4,
                     feature=k.category,
@@ -505,12 +525,13 @@ class HybridCoachingEngine:
         feature_name = feature.replace("avg_", "").replace("_", " ").title()
 
         # Build title
+        # Emoji stripped — presentation is UI concern
         if z_score < -1.5:
-            title = f"⚠️ Improve Your {feature_name}"
+            title = f"Improve Your {feature_name}"
         elif z_score < 0:
-            title = f"📊 {feature_name} Below Average"
+            title = f"{feature_name} Below Average"
         else:
-            title = f"✅ Strong {feature_name}"
+            title = f"Strong {feature_name}"
 
         # Build message
         message_parts = []
@@ -534,17 +555,17 @@ class HybridCoachingEngine:
         # Knowledge-derived insight
         if knowledge:
             best_knowledge = knowledge[0]
-            message_parts.append(f"\n💡 Pro tip: {best_knowledge.description}")
+            message_parts.append(f"\nPro tip: {best_knowledge.description}")  # Emoji stripped — presentation is UI concern
 
         # Pro examples
         pro_examples = [k.pro_example for k in knowledge if k.pro_example]
         if pro_examples:
-            message_parts.append(f"\n📊 Reference: {pro_examples[0]}")
+            message_parts.append(f"\nReference: {pro_examples[0]}")  # Emoji stripped — presentation is UI concern
 
         # TASK 2.7.1: Add Reference Clip info to message if available
         if tick_range and demo_name:
             message_parts.append(
-                f"\n🎬 Reference Clip: {demo_name} (ticks {tick_range[0]}-{tick_range[1]})"
+                f"\nReference Clip: {demo_name} (ticks {tick_range[0]}-{tick_range[1]})"  # Emoji stripped — presentation is UI concern
             )
 
         return HybridInsight(
@@ -594,11 +615,11 @@ def get_hybrid_engine() -> HybridCoachingEngine:
 
 if __name__ == "__main__":
     # Self-test
-    logger.info("=== Hybrid Coaching Engine Test ===\n")
+    logger.info("=== Hybrid Coaching Engine Test ===")
 
     engine = HybridCoachingEngine()
 
-    # Test player stats (below pro level)
+    # NOTE: Synthetic values for self-test only — not representative of real match data.
     player_stats = {
         "avg_kills": 14.0,  # Below 18.5 baseline
         "avg_deaths": 17.0,  # Above 15.2 baseline
@@ -614,9 +635,8 @@ if __name__ == "__main__":
 
     insights = engine.generate_insights(player_stats, map_name="de_mirage", side="T")
 
-    print(f"\nGenerated {len(insights)} insights:\n")
+    logger.info("Generated %s insights:", len(insights))
     for i, insight in enumerate(insights, 1):
-        print(f"{i}. [{insight.priority.value.upper()}] {insight.title}")
-        print(f"   Confidence: {insight.confidence:.2f}")
-        print(f"   {insight.message[:100]}...")
-        print()
+        logger.info("%s. [%s] %s", i, insight.priority.value.upper(), insight.title)
+        logger.info("   Confidence: %.2f", insight.confidence)
+        logger.info("   %s", insight.message[:100])
