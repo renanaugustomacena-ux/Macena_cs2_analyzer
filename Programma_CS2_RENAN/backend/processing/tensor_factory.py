@@ -203,7 +203,9 @@ class TensorFactory:
         - Ch2: Active utility zones (smoke/molotov/flash circles)
 
         Legacy channels (when knowledge is None):
-        - Ch0: FOV mask, Ch1: Danger zones (zeros), Ch2: Safe zones
+        - Ch0: FOV mask
+        - Ch1: Uncovered danger zones (areas not in recent FOV history — potential enemy positions)
+        - Ch2: Safe zones (recently covered but not currently in FOV)
 
         Args:
             ticks: List of PlayerTickState for current sequence.
@@ -232,7 +234,18 @@ class TensorFactory:
             return self._generate_pov_view(knowledge, fov_mask, meta, resolution)
 
         # --- Legacy mode (backward compat) ---
-        danger_zone = np.zeros((resolution, resolution), dtype=np.float32)
+        # G-02: Ch1 = danger zone — map areas NOT covered by accumulated player FOV.
+        # Unchecked angles represent potential enemy positions (danger).
+        # Cap history to 8 ticks (~125ms at 64 Hz) to keep path performant.
+        _LEGACY_TICK_CAP = 8
+        accumulated_fov = fov_mask.copy()
+        for tick in ticks[:-1][-_LEGACY_TICK_CAP:]:
+            tick_yaw = getattr(tick, "view_x", getattr(tick, "yaw", 0.0))
+            tick_fov = self._generate_fov_mask(
+                tick.pos_x, tick.pos_y, tick_yaw, meta, resolution
+            )
+            accumulated_fov = np.maximum(accumulated_fov, tick_fov)
+        danger_zone = np.clip(1.0 - accumulated_fov, 0, 1)
         safe_zone = np.clip(1.0 - fov_mask - danger_zone, 0, 1)
         view_tensor = np.stack([fov_mask, danger_zone, safe_zone], axis=0)
 

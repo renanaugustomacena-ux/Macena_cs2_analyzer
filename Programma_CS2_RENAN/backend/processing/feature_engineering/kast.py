@@ -105,7 +105,7 @@ def calculate_kast_percentage(
         ticks_per_second: Tick rate of the demo (64 for matchmaking, 128 for FACEIT/ESEA).
 
     Returns:
-        float: KAST percentage (0.0 to 1.0)
+        float: KAST ratio (0.0 to 1.0)
     """
     if not rounds_events:
         return 0.0
@@ -135,7 +135,7 @@ def estimate_kast_from_stats(kills: int, assists: int, deaths: int, rounds_playe
         rounds_played: Total rounds played
 
     Returns:
-        float: Estimated KAST percentage (0.0 to 1.0)
+        float: Estimated KAST ratio (0.0 to 1.0)
     """
     if rounds_played == 0:
         return 0.0

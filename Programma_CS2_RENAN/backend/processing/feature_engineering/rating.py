@@ -119,6 +119,9 @@ def compute_hltv2_rating(
     return (r_kill + r_surv + r_kast + r_imp + r_dmg) / 5.0
 
 
+# F2-39: DEAD CODE — never called anywhere in the production codebase.
+# Retained for reference only (matches HLTV's published coefficients).
+# Consider deleting when the regression approach is formally deprecated.
 def compute_hltv2_rating_regression(
     kpr: float,
     dpr: float,
