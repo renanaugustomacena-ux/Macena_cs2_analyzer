@@ -16,6 +16,7 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).parent.parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
+from sqlalchemy import func
 from sqlmodel import select
 
 from Programma_CS2_RENAN.backend.knowledge.pro_demo_miner import auto_populate_from_pro_demos
@@ -73,32 +74,36 @@ def initialize_knowledge_base():
     db = get_db_manager()
 
     with db.get_session() as session:
-        total = session.exec(select(TacticalKnowledge)).all()
+        # Use COUNT query — avoid loading all rows into memory (F5-03).
+        total_count = session.exec(
+            select(func.count()).select_from(TacticalKnowledge)
+        ).one()
 
-        # Count by category
-        categories = {}
-        maps = {}
+        # Count by category (aggregate, no full table scan)
+        cat_rows = session.exec(
+            select(TacticalKnowledge.category, func.count().label("cnt"))
+            .group_by(TacticalKnowledge.category)
+            .order_by(func.count().desc())
+        ).all()
 
-        for entry in total:
-            categories[entry.category] = categories.get(entry.category, 0) + 1
-            if entry.map_name:
-                maps[entry.map_name] = maps.get(entry.map_name, 0) + 1
+        map_rows = session.exec(
+            select(TacticalKnowledge.map_name, func.count().label("cnt"))
+            .where(TacticalKnowledge.map_name.isnot(None))
+            .group_by(TacticalKnowledge.map_name)
+            .order_by(func.count().desc())
+        ).all()
 
-        print(f"\n{'='*50}")
-        print(f"Total Knowledge Entries: {len(total)}")
-        print(f"{'='*50}\n")
-
-        print("By Category:")
-        for cat, count in sorted(categories.items(), key=lambda x: x[1], reverse=True):
-            print(f"  {cat:15s}: {count:3d} entries")
-
-        print("\nBy Map:")
-        for map_name, count in sorted(maps.items(), key=lambda x: x[1], reverse=True):
-            print(f"  {map_name:15s}: {count:3d} entries")
-
-        print(f"\n{'='*50}")
-        print("✓ Knowledge base initialization complete!")
-        print(f"{'='*50}\n")
+        logger.info("=" * 50)
+        logger.info("Total Knowledge Entries: %s", total_count)
+        logger.info("=" * 50)
+        logger.info("By Category:")
+        for cat, cnt in cat_rows:
+            logger.info("  %-15s: %3d entries", cat, cnt)
+        logger.info("By Map:")
+        for map_name, cnt in map_rows:
+            logger.info("  %-15s: %3d entries", map_name, cnt)
+        logger.info("=" * 50)
+        logger.info("Knowledge base initialization complete!")
 
 
 if __name__ == "__main__":

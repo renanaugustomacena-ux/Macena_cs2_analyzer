@@ -3,7 +3,7 @@ import subprocess
 import sys
 import threading
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from enum import Enum
 from pathlib import Path
 from typing import Dict, List, Optional
@@ -33,6 +33,11 @@ class ServiceSupervisor:
     Authoritative supervisor for background daemons.
     Manages PIDs, liveness, and restarts.
     """
+
+    # F5-25: Named constants — no magic numbers in restart logic.
+    _MAX_RETRIES: int = 3           # Max auto-restarts before giving up
+    _RETRY_RESET_WINDOW_S: float = 3600.0  # 1 h — retry counter resets after this
+    _RESTART_DELAY_S: float = 5.0   # Seconds to wait before each restart attempt
 
     def __init__(self, project_root: Path):
         self.project_root = project_root
@@ -84,7 +89,7 @@ class ServiceSupervisor:
 
                 svc["process"] = process
                 svc["status"] = ServiceStatus.RUNNING
-                svc["last_start"] = datetime.utcnow()
+                svc["last_start"] = datetime.now(timezone.utc)
                 logger.info("Supervisor: Service '%s' started with PID %s", name, process.pid)
 
                 # Start monitoring thread
@@ -134,18 +139,19 @@ class ServiceSupervisor:
             # Lock ordering: Timer fires after _lock is released here; start_service
             # re-acquires _lock independently — no deadlock since 5s delay >> lock hold time.
             last_start = svc.get("last_start")
-            if last_start and (datetime.utcnow() - last_start).total_seconds() > 3600:
+            if last_start and (datetime.now(timezone.utc) - last_start).total_seconds() > self._RETRY_RESET_WINDOW_S:
                 svc["retries"] = 0
-            if svc["retries"] < 3:
+            if svc["retries"] < self._MAX_RETRIES:
                 svc["retries"] += 1
                 logger.warning(
                     "Supervisor: Auto-restarting '%s' (Attempt %s)...", name, svc["retries"]
                 )
-                threading.Timer(5.0, self.start_service, args=(name,)).start()
+                threading.Timer(self._RESTART_DELAY_S, self.start_service, args=(name,)).start()
             else:
                 logger.error(
-                    "Supervisor: Service '%s' exceeded max retries (3). Manual restart required.",
+                    "Supervisor: Service '%s' exceeded max retries (%s). Manual restart required.",
                     name,
+                    self._MAX_RETRIES,
                 )
 
     def get_status(self) -> Dict:
@@ -165,6 +171,10 @@ class Console:
     The Unified Control Console (Singleton).
     Authority for ML, Ingestion, and System State.
     """
+
+    # F5-25: Named TTL constants — avoids magic numbers in cache logic.
+    _BASELINE_CACHE_TTL_S: float = 60.0       # Baseline status cache lifetime (seconds)
+    _TRAINING_DATA_CACHE_TTL_S: float = 120.0  # Training data cache lifetime (seconds)
 
     _instance = None
     _lock = threading.Lock()
@@ -208,14 +218,12 @@ class Console:
         # Baseline cache: avoid querying DB + computing decay every 1s poll
         self._baseline_cache = None
         self._baseline_cache_ts = 0.0
-        _BASELINE_CACHE_TTL_S = 60.0
-        self._baseline_ttl = _BASELINE_CACHE_TTL_S
+        self._baseline_ttl = self._BASELINE_CACHE_TTL_S
 
         # Training data cache: avoid rglob on large demo directories every poll
         self._training_data_cache = None
         self._training_data_cache_ts = 0.0
-        _TRAINING_DATA_CACHE_TTL_S = 120.0
-        self._training_data_ttl = _TRAINING_DATA_CACHE_TTL_S
+        self._training_data_ttl = self._TRAINING_DATA_CACHE_TTL_S
 
         self._initialized = True
         logger.info("Unified Control Console Initialized.")
@@ -248,12 +256,22 @@ class Console:
         self.ingest_manager.stop()
         self.ml_controller.stop_training()
         # Brief wait for async stops to propagate
+        _shutdown_clean = False
         for _ in range(10):
             ml_status = self.ml_controller.get_status()
             ingest_status = self.ingest_manager.get_status()
             if not ml_status.get("is_running") and not ingest_status.get("is_running"):
+                _shutdown_clean = True
                 break
             time.sleep(0.5)
+        # F5-34: Log warning if timeout hit without clean shutdown.
+        if not _shutdown_clean:
+            logger.warning(
+                "Console: Shutdown timeout — subsystems may still be running "
+                "(ML=%s, Ingest=%s). Process exit will force termination.",
+                self.ml_controller.get_status().get("is_running"),
+                self.ingest_manager.get_status().get("is_running"),
+            )
         logger.info("Console: Shutdown complete.")
 
     def _audit_databases(self):
@@ -287,7 +305,7 @@ class Console:
                 return {"error": str(e)}
 
         return {
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
             "state": self._compute_state(),
             "services": _safe_call("services", self.supervisor.get_status),
             "teacher": _safe_call("teacher", lambda: state_manager.get_status("teacher")),
@@ -387,17 +405,33 @@ class Console:
         pro_dem_available = 0
         user_dem_available = 0
 
+        # F5-07: rglob on network/large drives can hang; cap at 10 000 and catch errors.
+        _DEMO_COUNT_CAP = 10_000
+
+        def _count_demos(directory: Path) -> int:
+            try:
+                count = 0
+                for _ in directory.rglob("*.dem"):
+                    count += 1
+                    if count >= _DEMO_COUNT_CAP:
+                        logger.warning("Demo count capped at %s in %s", _DEMO_COUNT_CAP, directory)
+                        return count
+                return count
+            except Exception as exc:
+                logger.warning("Failed to count demos in %s: %s", directory, exc)
+                return 0
+
         pro_path = get_setting("PRO_DEMO_PATH", "")
         if pro_path:
             pro_dir = Path(pro_path)
             if pro_dir.exists():
-                pro_dem_available = sum(1 for _ in pro_dir.rglob("*.dem"))
+                pro_dem_available = _count_demos(pro_dir)
 
         user_path = get_setting("USER_DEMO_PATH", "")
         if user_path:
             user_dir = Path(user_path)
             if user_dir.exists():
-                user_dem_available = sum(1 for _ in user_dir.rglob("*.dem"))
+                user_dem_available = _count_demos(user_dir)
 
         total_processed = pro_processed + user_processed
         total_available = pro_dem_available + user_dem_available

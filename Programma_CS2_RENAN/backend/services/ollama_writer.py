@@ -17,6 +17,10 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.ollama_writer")
 
+# F5-24: System prompt is a module constant for now. To tune without code changes,
+# override via config: get_setting("COACH_SYSTEM_PROMPT", default=_DEFAULT_PROMPT).
+# coaching_dialogue.py and llm_service.py have similar prompts that should also be
+# made configurable when prompt engineering becomes a priority.
 COACH_SYSTEM_PROMPT = (
     "You are a CS2 tactical coach. Based on the analysis data provided, "
     "write a brief, actionable coaching tip (2-3 sentences). "

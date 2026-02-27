@@ -22,7 +22,8 @@ from typing import Any, Dict, List, Optional
 import numpy as np
 from sqlmodel import select
 
-from Programma_CS2_RENAN.backend.storage.database import get_db_manager, init_database
+from Programma_CS2_RENAN.backend.knowledge.round_utils import infer_round_phase  # F5-20: shared utility
+from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import TacticalKnowledge
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
@@ -116,8 +117,10 @@ class KnowledgeEmbedder:
         db = get_db_manager()
         count = 0
 
+        # Limit to prevent OOM on large knowledge bases (F5-03).
+        MAX_REEMBED_BATCH = 5_000
         with db.get_session() as session:
-            entries = session.exec(select(TacticalKnowledge)).all()
+            entries = session.exec(select(TacticalKnowledge).limit(MAX_REEMBED_BATCH)).all()
 
             for entry in entries:
                 try:
@@ -149,7 +152,7 @@ class KnowledgeRetriever:
     """
 
     def __init__(self):
-        init_database()
+        # F5-23: init_database() removed — must be called once at app startup, not per-constructor.
         self.db = get_db_manager()
         self.embedder = KnowledgeEmbedder()
 
@@ -238,7 +241,7 @@ class KnowledgePopulator:
     """
 
     def __init__(self):
-        init_database()
+        # F5-23: init_database() removed — must be called once at app startup, not per-constructor.
         self.db = get_db_manager()
         self.embedder = KnowledgeEmbedder()
 
@@ -353,16 +356,18 @@ def generate_rag_coaching_insight(
     # Generate contextual insight
     insight_parts = []
     for k in knowledge:
-        insight_parts.append(f"💡 {k.title}: {k.description}")
+        insight_parts.append(f"{k.title}: {k.description}")  # Emoji stripped — presentation is UI concern
         if k.pro_example:
-            insight_parts.append(f"   📊 Pro example: {k.pro_example}")
+            insight_parts.append(f"   Pro example: {k.pro_example}")
 
     return "\n".join(insight_parts)
 
 
 if __name__ == "__main__":
-    # Self-test
-    logger.info("=== RAG Knowledge Base Test ===\n")
+    # F5-27: NOTE — this __main__ block is a development self-test only.
+    # The hardcoded knowledge entries below are SYNTHETIC test data, not real match data.
+    # TODO: move this to tests/knowledge/test_rag_knowledge.py when a test harness is available.
+    logger.info("=== RAG Knowledge Base Test (synthetic data — not for production) ===\n")
 
     # Populate sample knowledge
     populator = KnowledgePopulator()
@@ -388,15 +393,15 @@ if __name__ == "__main__":
     retriever = KnowledgeRetriever()
     results = retriever.retrieve("low ADR on Mirage", top_k=1, map_name="de_mirage")
 
-    print(f"Found {len(results)} results:\n")
+    logger.info("Found %s results:", len(results))
     for r in results:
-        print(f"  - {r.title}")
-        print(f"    {r.description}\n")
+        logger.info("  - %s", r.title)
+        logger.info("    %s", r.description)
 
     # Test RAG coaching
     stats = {"avg_adr": 65, "avg_kills": 15}
     insight = generate_rag_coaching_insight(stats, map_name="de_mirage")
-    print(f"RAG Insight:\n{insight}")
+    logger.info("RAG Insight: %s", insight)
 
 
 def generate_unified_coaching_insight(
@@ -433,11 +438,11 @@ def generate_unified_coaching_insight(
     if tick_data:
         try:
             from Programma_CS2_RENAN.backend.knowledge.experience_bank import (
-                ExperienceBank,
                 ExperienceContext,
+                get_experience_bank,
             )
 
-            bank = ExperienceBank()
+            bank = get_experience_bank()  # Singleton — avoids re-loading SBERT model (F5-04)
 
             # Build context
             context = ExperienceContext(
@@ -468,13 +473,4 @@ def generate_unified_coaching_insight(
     return "\n".join(insight_parts)
 
 
-def _infer_round_phase(tick_data: Dict) -> str:
-    """Infer round phase from equipment value."""
-    equip = tick_data.get("equipment_value", 0)
-    if equip < 1500:
-        return "pistol"
-    elif equip < 3000:
-        return "eco"
-    elif equip < 4000:
-        return "force"
-    return "full_buy"
+# F5-20: _infer_round_phase extracted to round_utils.infer_round_phase (shared utility).

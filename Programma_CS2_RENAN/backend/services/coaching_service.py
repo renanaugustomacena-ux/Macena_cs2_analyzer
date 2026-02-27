@@ -2,6 +2,7 @@ from typing import Any, Dict, List, Optional
 
 from Programma_CS2_RENAN.backend.coaching.correction_engine import generate_corrections
 from Programma_CS2_RENAN.backend.coaching.longitudinal_engine import generate_longitudinal_coaching
+from Programma_CS2_RENAN.backend.knowledge.round_utils import infer_round_phase  # F5-20: shared utility
 from Programma_CS2_RENAN.backend.services.ollama_writer import get_ollama_writer
 from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import CoachingInsight, PlayerMatchStats
@@ -115,14 +116,14 @@ class CoachingService:
         """
         try:
             from Programma_CS2_RENAN.backend.knowledge.experience_bank import (
-                ExperienceBank,
                 ExperienceContext,
+                get_experience_bank,
             )
             from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
             logger = get_logger("cs2analyzer.coaching.coper")
 
-            bank = ExperienceBank()
+            bank = get_experience_bank()  # Singleton — avoids re-loading SBERT model (F5-04)
 
             # Build context from tick data
             context = ExperienceContext(
@@ -260,15 +261,8 @@ class CoachingService:
         return " ".join(notes)
 
     def _infer_round_phase(self, tick_data: Dict) -> str:
-        """Infer round phase from equipment value."""
-        equip = tick_data.get("equipment_value", 0)
-        if equip < 1500:
-            return "pistol"
-        elif equip < 3000:
-            return "eco"
-        elif equip < 4000:
-            return "force"
-        return "full_buy"
+        """Delegate to shared utility (F5-20: DRY)."""
+        return infer_round_phase(tick_data)
 
     def _health_to_range(self, health: int) -> str:
         """Convert health to categorical range."""
@@ -580,5 +574,12 @@ def _create_insight_obj(p_name, d_name, c):
     )
 
 
+_coaching_service: CoachingService = None  # type: ignore[assignment]
+
+
 def get_coaching_service() -> CoachingService:
-    return CoachingService()
+    """Singleton factory — consistent with other service accessors (F5-38)."""
+    global _coaching_service
+    if _coaching_service is None:
+        _coaching_service = CoachingService()
+    return _coaching_service

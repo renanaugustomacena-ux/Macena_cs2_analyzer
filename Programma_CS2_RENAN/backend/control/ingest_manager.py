@@ -37,7 +37,11 @@ class IngestionManager:
         self._phase = "idle"  # idle / discovering / processing N/M: file / waiting Xm
         self._total_found = 0
         self._mode = IngestMode.CONTINUOUS
+        # F5-32: Default 30-minute re-scan interval. Override via set_mode(interval=N)
+        # or expose via get_setting("INGEST_INTERVAL_MINUTES", default=30) if needed.
         self._interval_minutes = 30
+        # F5-35: Event-based stop signal — avoids 1-second polling in wait loops.
+        self._stop_event = threading.Event()
         self.db_manager = get_db_manager()
         self.storage = StorageManager()
 
@@ -58,6 +62,7 @@ class IngestionManager:
 
     def stop(self):
         self._stop_requested = True
+        self._stop_event.set()  # F5-35: Unblock Event.wait() calls immediately
 
     def get_status(self) -> Dict:
         from sqlmodel import func, select
@@ -149,21 +154,20 @@ class IngestionManager:
                         "IngestionManager: TIMED wait %sm before re-scan...",
                         self._interval_minutes,
                     )
-                    for _ in range(self._interval_minutes * 60):
-                        if self._stop_requested:
-                            break
-                        time.sleep(1)
+                    # F5-35: Event.wait() blocks until stop or timeout — no 1s polling.
+                    self._stop_event.wait(timeout=self._interval_minutes * 60)
                     if self._stop_requested:
                         break
+                    self._stop_event.clear()  # Reset for next wait cycle
                     continue
 
                 # CONTINUOUS: re-scan immediately (small pause to avoid busy-loop)
                 if total_files == 0:
                     self._phase = "waiting 30s"
-                    for _ in range(30):
-                        if self._stop_requested:
-                            break
-                        time.sleep(1)
+                    # F5-35: Event.wait() — wakes immediately on stop signal.
+                    self._stop_event.wait(timeout=30)
+                    if not self._stop_requested:
+                        self._stop_event.clear()  # Reset for next wait cycle
 
         except Exception as e:
             logger.error("IngestionManager: Cycle Error: %s", e)

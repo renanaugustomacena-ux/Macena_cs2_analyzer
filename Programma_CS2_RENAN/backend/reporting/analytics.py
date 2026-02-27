@@ -29,7 +29,7 @@ class AnalyticsEngine:
             stmt = (
                 select(PlayerMatchStats)
                 .where(
-                    PlayerMatchStats.player_name == player_name, PlayerMatchStats.is_pro == False
+                    PlayerMatchStats.player_name == player_name, PlayerMatchStats.is_pro == False  # noqa: E712
                 )
                 .order_by(PlayerMatchStats.processed_at.desc())
                 .limit(limit)
@@ -290,16 +290,9 @@ class AnalyticsEngine:
                     "_provenance": "db",
                 }
             else:
-                logger.info("No pro utility data in DB, using fallback estimates")
-                pro = {
-                    "he_damage": 4.5,
-                    "molotov_damage": 6.2,
-                    "smokes_per_round": 1.1,
-                    "flash_blind_time": 12.0,
-                    "flash_assists": 0.8,
-                    "unused_utility": 0.3,
-                    "_provenance": "fallback",
-                }
+                # No pro data in DB — return empty rather than fabricate values (Anti-Fabrication Rule).
+                logger.info("No pro utility data in DB; returning empty pro baseline")
+                pro = {}
             return {"user": user, "pro": pro}
         except Exception as e:
             logger.error("analytics.get_utility_breakdown failed", error=str(e))

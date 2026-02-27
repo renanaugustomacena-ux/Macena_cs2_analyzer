@@ -8,6 +8,10 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 logger = get_logger("cs2analyzer.ml_controller")
 
 
+class TrainingStopRequested(Exception):
+    """Raised by MLControlContext.check_state() when operator requests termination."""
+
+
 class MLControlContext:
     """
     Control token passed to ML loops to allow real-time intervention.
@@ -18,14 +22,18 @@ class MLControlContext:
         self._pause_requested = False
         self._throttle_factor = 0.0  # 0.0 = full speed, 1.0 = maximum delay
         self._lock = threading.Lock()
+        # F5-15: Event-based pause — avoids busy-wait polling loop.
+        self._resume_event = threading.Event()
+        self._resume_event.set()  # Initially not paused
 
     def check_state(self):
         """Called by training loops to respect operator commands."""
-        while self._pause_requested:
-            time.sleep(1)
+        # F5-15: Block efficiently until resume; avoids busy-wait.
+        self._resume_event.wait()
 
         if self._stop_requested:
-            raise StopIteration("ML Operator requested termination.")
+            # F5-16: Custom exception; StopIteration is reserved for generators/iterators.
+            raise TrainingStopRequested("ML Operator requested termination.")
 
         if self._throttle_factor > 0:
             time.sleep(self._throttle_factor)
@@ -43,9 +51,11 @@ class MLControlContext:
 
     def request_pause(self):
         self._pause_requested = True
+        self._resume_event.clear()  # Block check_state() callers
 
     def request_resume(self):
         self._pause_requested = False
+        self._resume_event.set()  # Unblock check_state() callers
 
     def set_throttle(self, value: float):
         self._throttle_factor = value
@@ -92,7 +102,7 @@ class MLController:
             manager = CoachTrainingManager()
             # We will refactor run_full_cycle to accept context
             manager.run_full_cycle(context=self.context)
-        except StopIteration:
+        except TrainingStopRequested:
             logger.info("MLController: Training stopped gracefully by operator.")
             state_manager.update_status("teacher", "Stopped", "Manually terminated.")
         except Exception as e:

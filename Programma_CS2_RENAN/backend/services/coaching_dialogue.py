@@ -141,19 +141,24 @@ class CoachingDialogueEngine:
                 f"use if relevant, ignore if not]\n{retrieval_context}"
             )
 
-        # Append the original user message to display history
-        self._history.append({"role": "user", "content": user_message})
-
-        # Build message array for Ollama (sliding window)
+        # Build message array for Ollama (sliding window — history NOT yet mutated)
         messages = self._build_chat_messages(augmented_user)
 
-        response = self._llm.chat(messages, system_prompt=self._system_prompt)
+        # F5-06: append user message only after we have a valid response so that
+        # an LLM exception cannot leave the history in an inconsistent state.
+        try:
+            response = self._llm.chat(messages, system_prompt=self._system_prompt)
+        except Exception as exc:
+            logger.error("LLM chat raised an exception: %s", exc)
+            response = self._fallback_response(user_message, intent)
 
         # Check for LLM error markers → fall back
         if response.startswith("[LLM"):
             logger.warning("LLM error in dialogue: %s", response)
             response = self._fallback_response(user_message, intent)
 
+        # Safe to append now that we have a usable response
+        self._history.append({"role": "user", "content": user_message})
         self._history.append({"role": "assistant", "content": response})
         return response
 
@@ -264,11 +269,11 @@ class CoachingDialogueEngine:
         # Experience Bank
         try:
             from Programma_CS2_RENAN.backend.knowledge.experience_bank import (
-                ExperienceBank,
                 ExperienceContext,
+                get_experience_bank,
             )
 
-            bank = ExperienceBank()
+            bank = get_experience_bank()  # Singleton — avoids re-loading SBERT model (F5-04)
             map_name = self._player_context.get("map_name", "unknown")
             ctx = ExperienceContext(
                 map_name=map_name,

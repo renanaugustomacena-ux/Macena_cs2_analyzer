@@ -17,6 +17,7 @@ Adheres to GEMINI.md principles:
     - Clear separation of concerns
 """
 
+from abc import ABC, abstractmethod
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -217,14 +218,16 @@ class ProDemoMiner:
         return knowledge
 
 
-class AdvancedProDemoMiner(ProDemoMiner):
+class AdvancedProDemoMiner(ProDemoMiner, ABC):
     """
     Advanced demo mining with actual demo file parsing.
 
     Requires demoparser2 for detailed analysis.
-    This is a placeholder for future implementation.
+    Marked abstract (F5-05) — subclass must implement parse_demo_file()
+    and detect_successful_executes() before instantiation.
     """
 
+    @abstractmethod
     def parse_demo_file(self, demo_path: Path) -> Dict:
         """
         Parse demo file with demoparser2.
@@ -238,8 +241,8 @@ class AdvancedProDemoMiner(ProDemoMiner):
         - Kill locations
         - Economy states
         """
-        raise NotImplementedError("Demo file parsing not yet implemented")
 
+    @abstractmethod
     def detect_successful_executes(self, rounds: List[Dict]) -> List[Dict]:
         """
         Detect high-success execute patterns.
@@ -249,7 +252,6 @@ class AdvancedProDemoMiner(ProDemoMiner):
         - >60% round win rate
         - Consistent utility usage
         """
-        raise NotImplementedError("Execute detection not yet implemented")
 
 
 def auto_populate_from_pro_demos(limit: int = 20) -> int:
@@ -271,4 +273,4 @@ if __name__ == "__main__":
     logger.info("=== Pro Demo Mining Test ===\n")
 
     count = auto_populate_from_pro_demos(limit=5)
-    print(f"Mined {count} knowledge entries from pro demos")
+    logger.info("Mined %s knowledge entries from pro demos", count)

@@ -83,6 +83,9 @@ class DatabaseGovernor:
             from sqlalchemy import text
 
             if full:
+                # F5-31: PRAGMA quick_check can take minutes on large DBs (16+ GB).
+                # No programmatic timeout is available via SQLite pragma — caller should
+                # run this in a background thread or set full=False for liveness checks.
                 res = session.execute(text("PRAGMA quick_check")).scalar()
                 results["monolith"] = res == "ok"
             else:

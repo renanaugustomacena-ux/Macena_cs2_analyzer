@@ -14,11 +14,21 @@ Usage:
 
 import json
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from Programma_CS2_RENAN.backend.services.llm_service import check_ollama_status, get_llm_service
+
+# F5-18: Named thresholds — no magic numbers in lesson generation logic.
+_ADR_STRONG_THRESHOLD: float = 75.0       # ADR above this = "good impact"
+_ADR_WEAK_THRESHOLD: float = 60.0         # ADR below this = needs improvement
+_HS_STRONG_THRESHOLD: float = 0.40        # HS% above this = "strong aim"
+_HS_WEAK_THRESHOLD: float = 0.35          # HS% below this = needs work
+_RATING_ABOVE_AVG: float = 1.0            # Rating above this = above average
+_KAST_STRONG_THRESHOLD: float = 0.70      # KAST above this = "consistent"
+_DEATH_RATIO_WARNING: float = 1.5         # deaths > kills * this ratio = over-dying
+_MIN_DEATHS_FOR_WARNING: int = 15         # Minimum deaths before ratio warning applies
 
 
 class LessonGenerator:
@@ -60,7 +70,7 @@ class LessonGenerator:
         # Build lesson structure
         lesson = {
             "demo_name": demo_name,
-            "generated_at": datetime.utcnow().isoformat(),
+            "generated_at": datetime.now(timezone.utc).isoformat(),
             "focus_area": focus_area or "general",
             "sections": {},
         }
@@ -118,7 +128,7 @@ class LessonGenerator:
 
         # ADR above average
         adr = match_data.get("avg_adr", 0)
-        if adr > 75:
+        if adr > _ADR_STRONG_THRESHOLD:
             strengths.append(
                 {
                     "category": "Impact",
@@ -129,7 +139,7 @@ class LessonGenerator:
 
         # HS percentage
         hs = match_data.get("avg_hs", 0)
-        if hs > 0.4:
+        if hs > _HS_STRONG_THRESHOLD:
             strengths.append(
                 {
                     "category": "Aim",
@@ -140,7 +150,7 @@ class LessonGenerator:
 
         # KAST
         kast = match_data.get("avg_kast", 0)
-        if kast > 0.7:
+        if kast > _KAST_STRONG_THRESHOLD:
             strengths.append(
                 {
                     "category": "Consistency",
@@ -151,7 +161,7 @@ class LessonGenerator:
 
         # Rating
         rating = match_data.get("rating", 0)
-        if rating > 1.0:
+        if rating > _RATING_ABOVE_AVG:
             strengths.append(
                 {
                     "category": "Overall",
@@ -183,7 +193,7 @@ class LessonGenerator:
 
         # Low ADR
         adr = match_data.get("avg_adr", 0)
-        if adr < 60:
+        if adr < _ADR_WEAK_THRESHOLD:
             improvements.append(
                 {
                     "category": "Impact",
@@ -195,7 +205,7 @@ class LessonGenerator:
 
         # Low HS percentage
         hs = match_data.get("avg_hs", 0)
-        if hs < 0.35:
+        if hs < _HS_WEAK_THRESHOLD:
             improvements.append(
                 {
                     "category": "Aim",
@@ -208,7 +218,7 @@ class LessonGenerator:
         # Deaths too high
         deaths = match_data.get("avg_deaths", 0)
         kills = match_data.get("avg_kills", 0)
-        if deaths > kills * 1.5 and deaths > 15:
+        if deaths > kills * _DEATH_RATIO_WARNING and deaths > _MIN_DEATHS_FOR_WARNING:
             improvements.append(
                 {
                     "category": "Positioning",
@@ -325,7 +335,7 @@ class LessonGenerator:
         with self.db.get_session() as session:
             stmt = (
                 select(PlayerMatchStats)
-                .where(PlayerMatchStats.is_pro == False)
+                .where(PlayerMatchStats.is_pro == False)  # noqa: E712
                 .order_by(PlayerMatchStats.processed_at.desc())
                 .limit(limit)
             )

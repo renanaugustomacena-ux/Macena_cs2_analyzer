@@ -1,5 +1,4 @@
-import datetime
-import os
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 import requests
@@ -7,7 +6,12 @@ from sqlmodel import select
 
 from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import PlayerProfile
+# F5-22: API keys are loaded from env vars / keyring in config.py — not hard-coded.
+# Verify STEAM_API_KEY and FACEIT_API_KEY are set via environment or secrets manager, never in source.
 from Programma_CS2_RENAN.core.config import CS2_PLAYER_NAME, FACEIT_API_KEY, STEAM_API_KEY
+from Programma_CS2_RENAN.observability.logger_setup import get_logger
+
+logger = get_logger("cs2analyzer.profile_service")  # F5-33: structured logging
 
 
 class ProfileService:
@@ -40,14 +44,14 @@ class ProfileService:
             faceit_id=faceit_data.get("faceit_id"),
             faceit_elo=faceit_data.get("elo", 0),
             faceit_level=faceit_data.get("level", 0),
-            last_updated=datetime.datetime.utcnow(),
+            last_updated=datetime.now(timezone.utc),
         )
 
         _persist_profile_update(profile)
         return {"status": "success", "steam": steam_data, "faceit": faceit_data}
 
 
-def _execute_steam_fetch(key, steam_id):
+def _execute_steam_fetch(key: str, steam_id: str) -> Dict[str, Any]:
     try:
         resp = requests.get(
             "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/",
@@ -59,7 +63,7 @@ def _execute_steam_fetch(key, steam_id):
         return {"error": f"Steam Fetch Failed: {str(e)}"}
 
 
-def _parse_steam_response(resp, key, steam_id):
+def _parse_steam_response(resp: Dict[str, Any], key: str, steam_id: str) -> Dict[str, Any]:
     players = resp.get("response", {}).get("players")
     if not players:
         return {"error": "Player not found"}
@@ -72,7 +76,7 @@ def _parse_steam_response(resp, key, steam_id):
     }
 
 
-def _fetch_cs2_hours(key, steam_id):
+def _fetch_cs2_hours(key: str, steam_id: str) -> float:
     r = requests.get(
         "https://api.steampowered.com/IPlayerService/GetOwnedGames/v0001/",
         params={"key": key, "steamid": steam_id, "format": "json"},
@@ -83,7 +87,7 @@ def _fetch_cs2_hours(key, steam_id):
     return cs2.get("playtime_forever", 0) / 60 if cs2 else 0
 
 
-def _execute_faceit_fetch(key, nickname):
+def _execute_faceit_fetch(key: str, nickname: str) -> Dict[str, Any]:
     headers = {"Authorization": f"Bearer {key}"}
     url = f"https://open.faceit.com/data/v4/players?nickname={nickname}&game=cs2"
     try:
@@ -100,6 +104,8 @@ def _execute_faceit_fetch(key, nickname):
 
 def _persist_profile_update(profile):
     db = get_db_manager()
+    # F5-21: get_session() context manager auto-commits on clean exit and
+    # rolls back on exception — explicit session.commit() is not required here.
     with db.get_session() as session:
         stmt = select(PlayerProfile).where(PlayerProfile.player_name == CS2_PLAYER_NAME)
         existing = session.exec(stmt).first()

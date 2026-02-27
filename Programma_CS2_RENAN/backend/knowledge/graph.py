@@ -11,8 +11,10 @@ Inspired by Model Context Protocol (MCP) Memory Server.
 import json
 import os
 import sqlite3
+from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 
+from Programma_CS2_RENAN.core.config import USER_DATA_ROOT
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.knowledge_graph")
@@ -22,17 +24,12 @@ class KnowledgeGraphManager:
     """
     Manages the Knowledge Graph (Entities & Relations).
 
-    Database: data/knowledge_graph.db
+    Database: <USER_DATA_ROOT>/knowledge_graph.db
     Schema: Entities, Relations
     """
 
-    DB_PATH = os.path.join(
-        os.path.dirname(
-            os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-        ),
-        "data",
-        "knowledge_graph.db",
-    )
+    # F5-08: Use config constant instead of fragile __file__ traversal.
+    DB_PATH = str(Path(USER_DATA_ROOT) / "knowledge_graph.db")
 
     def __init__(self):
         self._init_db()
@@ -72,13 +69,13 @@ class KnowledgeGraphManager:
         except Exception as e:
             logger.error("Failed to initialize Knowledge Graph DB: %s", e)
 
-    def add_entity(self, name: str, type: str, observations: List[str] = None):
+    def add_entity(self, name: str, entity_type: str, observations: List[str] = None):  # F5-30: renamed from `type` to avoid shadowing builtin
         """
         Upsert an entity.
 
         Args:
             name: Unique name (e.g., "Mirage/Window")
-            type: Entity type (e.g., "Spot")
+            entity_type: Entity type (e.g., "Spot")
             observations: List of facts (e.g., ["Key control point", "Vulnerable to flashes"])
         """
         obs_json = json.dumps(observations or [])
@@ -92,10 +89,10 @@ class KnowledgeGraphManager:
                         type=excluded.type,
                         observations=excluded.observations
                 """,
-                    (name, type, obs_json),
+                    (name, entity_type, obs_json),
                 )
                 conn.commit()
-            logger.info("Graph: Upserted Entity '%s' (%s)", name, type)
+            logger.info("Graph: Upserted Entity '%s' (%s)", name, entity_type)
         except Exception as e:
             logger.error("Failed to add entity %s: %s", name, e)
 

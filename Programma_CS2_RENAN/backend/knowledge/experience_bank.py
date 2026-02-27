@@ -20,14 +20,15 @@ Adheres to GEMINI.md principles:
 import hashlib
 import json
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
 from sqlmodel import Session, func, select
 
 from Programma_CS2_RENAN.backend.knowledge.rag_knowledge import KnowledgeEmbedder
-from Programma_CS2_RENAN.backend.storage.database import get_db_manager, init_database
+from Programma_CS2_RENAN.backend.knowledge.round_utils import infer_round_phase  # F5-20: shared utility
+from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import CoachingExperience, PlayerMatchStats
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
@@ -100,7 +101,7 @@ class ExperienceBank:
     """
 
     def __init__(self):
-        init_database()
+        # F5-23: init_database() removed — must be called once at app startup, not per-constructor.
         self.db = get_db_manager()
         self.embedder = KnowledgeEmbedder()
         logger.info("ExperienceBank initialized")
@@ -554,7 +555,7 @@ class ExperienceBank:
             experience.times_advice_given = (experience.times_advice_given or 0) + 1
             if action_match:
                 experience.times_advice_followed = (experience.times_advice_followed or 0) + 1
-            experience.last_feedback_at = datetime.utcnow()
+            experience.last_feedback_at = datetime.now(timezone.utc)
 
             # Adjust confidence based on feedback
             confidence_adj = effectiveness * 0.05
@@ -564,8 +565,9 @@ class ExperienceBank:
             session.commit()
 
         logger.info(
-            f"Feedback recorded for experience {experience_id}: "
-            f"effectiveness={effectiveness:.2f}"
+            "Feedback recorded for experience %s: effectiveness=%.2f",
+            experience_id,
+            effectiveness,
         )
         return True
 
@@ -589,7 +591,7 @@ class ExperienceBank:
                 .where(
                     CoachingExperience.map_name == map_name,
                     CoachingExperience.usage_count > 0,
-                    CoachingExperience.outcome_validated == False,
+                    CoachingExperience.outcome_validated == False,  # noqa: E712
                 )
                 .order_by(CoachingExperience.created_at.desc())
                 .limit(20)
@@ -641,14 +643,14 @@ class ExperienceBank:
         """
         from datetime import timedelta
 
-        cutoff = datetime.utcnow() - timedelta(days=max_age_days)
+        cutoff = datetime.now(timezone.utc) - timedelta(days=max_age_days)
 
         with self.db.get_session() as session:
             stmt = select(CoachingExperience).where(
-                CoachingExperience.outcome_validated == False,
+                CoachingExperience.outcome_validated == False,  # noqa: E712
                 CoachingExperience.usage_count > 0,
                 CoachingExperience.created_at < cutoff,
-            )
+            ).limit(1000)  # F5-10: cap to prevent OOM on large experience banks
             stale = session.exec(stmt).all()
 
             for exp in stale:
@@ -673,15 +675,8 @@ class ExperienceBank:
         return float(np.dot(a, b) / (norm_a * norm_b))
 
     def _infer_round_phase(self, tick_data: Dict) -> str:
-        """Infer round phase from equipment value."""
-        equip = tick_data.get("equipment_value", 0)
-        if equip < 1500:
-            return "pistol"
-        elif equip < 3000:
-            return "eco"
-        elif equip < 4000:
-            return "force"
-        return "full_buy"
+        """Delegate to shared utility (F5-20: DRY)."""
+        return infer_round_phase(tick_data)
 
     def _infer_position_area(self, x: float, y: float, map_name: str) -> str:
         """Infer position area from coordinates (simplified)."""

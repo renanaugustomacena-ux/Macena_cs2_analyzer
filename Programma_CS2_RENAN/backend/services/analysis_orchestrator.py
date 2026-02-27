@@ -71,6 +71,9 @@ class AnalysisOrchestrator:
         self.blind_spot_detector = get_blind_spot_detector()
         self.engagement_analyzer = get_engagement_range_analyzer()
 
+        # F5-14: per-module failure counter for observability of persistent silent failures.
+        self._module_failure_counts: Dict[str, int] = {}
+
     def analyze_match(
         self,
         player_name: str,
@@ -197,7 +200,9 @@ class AnalysisOrchestrator:
                 )
 
         except Exception as e:
-            logger.error("Momentum analysis failed: %s", e)
+            n = self._module_failure_counts.get("momentum", 0) + 1
+            self._module_failure_counts["momentum"] = n
+            logger.error("Momentum analysis failed (consecutive=%s): %s", n, e)
 
         return insights
 
@@ -246,7 +251,9 @@ class AnalysisOrchestrator:
                 )
 
         except Exception as e:
-            logger.error("Deception analysis failed: %s", e)
+            n = self._module_failure_counts.get("deception", 0) + 1
+            self._module_failure_counts["deception"] = n
+            logger.error("Deception analysis failed (consecutive=%s): %s", n, e)
 
         return insights
 
@@ -342,7 +349,9 @@ class AnalysisOrchestrator:
                 )
 
         except Exception as e:
-            logger.error("Utility entropy analysis failed: %s", e)
+            n = self._module_failure_counts.get("utility_entropy", 0) + 1
+            self._module_failure_counts["utility_entropy"] = n
+            logger.error("Utility entropy analysis failed (consecutive=%s): %s", n, e)
 
         return insights
 
@@ -398,7 +407,9 @@ class AnalysisOrchestrator:
                 )
 
         except Exception as e:
-            logger.error("Strategy analysis failed: %s", e)
+            n = self._module_failure_counts.get("strategy", 0) + 1
+            self._module_failure_counts["strategy"] = n
+            logger.error("Strategy analysis failed (consecutive=%s): %s", n, e)
 
         return insights
 
@@ -507,11 +518,19 @@ class AnalysisOrchestrator:
             )
 
         except Exception as e:
-            logger.error("Engagement range analysis failed: %s", e)
+            n = self._module_failure_counts.get("engagement_range", 0) + 1
+            self._module_failure_counts["engagement_range"] = n
+            logger.error("Engagement range analysis failed (consecutive=%s): %s", n, e)
 
         return insights
 
 
+_orchestrator: AnalysisOrchestrator = None  # type: ignore[assignment]
+
+
 def get_analysis_orchestrator() -> AnalysisOrchestrator:
-    """Factory function for singleton access."""
-    return AnalysisOrchestrator()
+    """Singleton factory — avoids re-instantiating 7 analysis modules per call (F5-37)."""
+    global _orchestrator
+    if _orchestrator is None:
+        _orchestrator = AnalysisOrchestrator()
+    return _orchestrator
