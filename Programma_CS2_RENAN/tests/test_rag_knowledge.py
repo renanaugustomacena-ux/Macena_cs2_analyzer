@@ -212,19 +212,45 @@ class TestKnowledgeRetriever:
 class TestRAGCoaching:
     """Test suite for RAG-enhanced coaching."""
 
+    # F9-20: prefix isolates test rows from production data
+    _COACHING_TEST_PREFIX = "_TEST_RAG_COACHING_"
+
     @pytest.fixture(autouse=True)
     def setup_knowledge(self):
-        """Populate test knowledge."""
+        """Populate test knowledge — only touches rows prefixed with _COACHING_TEST_PREFIX."""
         init_database()
+
+        # Pre-cleanup: remove any leftover test rows from previous runs
+        db = get_db_manager()
+        with db.get_session() as session:
+            test_rows = session.exec(
+                select(TacticalKnowledge).where(
+                    TacticalKnowledge.title.startswith(self._COACHING_TEST_PREFIX)
+                )
+            ).all()
+            for k in test_rows:
+                session.delete(k)
+            session.commit()
 
         populator = KnowledgePopulator()
         populator.add_knowledge(
-            title="Improve ADR",
+            title=f"{self._COACHING_TEST_PREFIX}Improve ADR",
             description="Focus on mid control",
             category="positioning",
             situation="Low ADR",
             map_name="de_mirage",
         )
+        yield
+        # F9-20: teardown — delete prefixed test rows to prevent DB pollution
+        with db.get_session() as session:
+            test_rows = session.exec(
+                select(TacticalKnowledge).where(
+                    TacticalKnowledge.title.startswith(self._COACHING_TEST_PREFIX)
+                )
+            ).all()
+            for k in test_rows:
+                session.delete(k)
+            session.commit()
 
     def test_generate_rag_insight(self):
         """Test RAG coaching insight generation."""

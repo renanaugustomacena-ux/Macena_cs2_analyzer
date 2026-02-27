@@ -6,6 +6,21 @@ Provides:
 - Database fixtures (in-memory for schema tests, real DB for data tests)
 - Real-data fixtures with skip gates (no synthetic/mock data)
 - Torch utilities
+
+F9-05: real_db_session, real_player_stats, and real_round_stats use skip gates that are
+MACHINE-DEPENDENT. On a developer machine with populated database.db: tests execute and
+produce real coverage. On CI/CD or a fresh clone: tests skip silently — this is NOT a
+passing verdict, merely an absence of test signal. True portability requires seeded
+test fixtures; this is tracked as future work.
+
+F9-07: Modules with NO dedicated test file (6500+ LOC of critical business logic):
+  - backend/nn/training_orchestrator.py (733 LOC)
+  - core/session_engine.py (538 LOC)  — Tri-Daemon (Hunter/Digester/Teacher)
+  - backend/services/coaching_service.py (585 LOC)
+  - backend/knowledge/experience_bank.py (751 LOC)
+  - backend/processing/tensor_factory.py (686 LOC)
+  - backend/nn/coach_manager.py (878 LOC)
+Creating dedicated test files for these modules is tracked as future work.
 """
 
 import os

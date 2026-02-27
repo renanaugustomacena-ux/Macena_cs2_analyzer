@@ -1,3 +1,11 @@
+"""
+Smoke tests for Macena CS2 Analyzer automated suite.
+
+F9-08: These are import-only smoke tests — they verify that modules can be
+imported without crashing. They do NOT assert behavioral correctness.
+Behavioral tests are in the dedicated per-module test files.
+"""
+
 import os
 import sys
 
