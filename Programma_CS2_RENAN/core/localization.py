@@ -3,6 +3,9 @@ import os
 from kivy.event import EventDispatcher
 from kivy.properties import StringProperty
 
+# F7-28: os.path.expanduser('~') evaluated at import time. Acceptable for desktop app
+# where HOME is always set. Would need lazy evaluation in container/service context.
+
 # F6-23: Translations are hardcoded dicts. Migrate to JSON files in assets/i18n/
 # when localization is a priority (enables runtime locale switching without code changes).
 TRANSLATIONS = {
@@ -88,6 +91,24 @@ TRANSLATIONS = {
         "player_name_default": "Player Name",
         "role_default": "Role: All-Rounder",
         "save": "SAVE",
+        # F7-17: Quick action prompt i18n keys
+        "quick_action_positioning": "How can I improve my positioning?",
+        "quick_action_utility": "Analyze my utility usage",
+        "quick_action_focus": "What should I focus on improving?",
+        # F7-18: Hardcoded UI string i18n keys
+        "training_progress": "Training Progress",
+        "restart_service": "RESTART SERVICE",
+        "upload_pro_demos": "Upload pro demos directly...",
+        "ingestion_flux_speed": "Ingestion Flux Speed:",
+        "rap_coach_dashboard": "RAP-Coach Dashboard",
+        "advanced_analytics": "Advanced Analytics",
+        "knowledge_engine": "Knowledge Engine",
+        "ask_your_coach": "Ask Your Coach",
+        "coach_thinking": "Coach is thinking...",
+        "data_ingestion": "Data Ingestion",
+        "match_history_title": "Match History",
+        # F7-26: Missing search key
+        "search": "Search",
     },
     "pt": {
         "app_name": "Macena CS2 Analisador",
@@ -171,6 +192,24 @@ TRANSLATIONS = {
         "player_name_default": "Nome do Jogador",
         "role_default": "Função: Polivalente",
         "save": "SALVAR",
+        # F7-17
+        "quick_action_positioning": "Como posso melhorar meu posicionamento?",
+        "quick_action_utility": "Analise meu uso de utilitários",
+        "quick_action_focus": "No que devo focar para melhorar?",
+        # F7-18
+        "training_progress": "Progresso de Treino",
+        "restart_service": "REINICIAR SERVIÇO",
+        "upload_pro_demos": "Carregue demos profissionais...",
+        "ingestion_flux_speed": "Velocidade de Ingestão:",
+        "rap_coach_dashboard": "Painel RAP-Coach",
+        "advanced_analytics": "Análise Avançada",
+        "knowledge_engine": "Motor de Conhecimento",
+        "ask_your_coach": "Pergunte ao seu Coach",
+        "coach_thinking": "Coach está pensando...",
+        "data_ingestion": "Ingestão de Dados",
+        "match_history_title": "Histórico de Partidas",
+        # F7-26
+        "search": "Buscar",
     },
     "it": {
         "app_name": "Macena CS2 Analizzatore",
@@ -254,6 +293,24 @@ TRANSLATIONS = {
         "player_name_default": "Nome Giocatore",
         "role_default": "Ruolo: Tuttofare",
         "save": "SALVA",
+        # F7-17
+        "quick_action_positioning": "Come posso migliorare il mio posizionamento?",
+        "quick_action_utility": "Analizza il mio uso degli utilitari",
+        "quick_action_focus": "Su cosa dovrei concentrarmi per migliorare?",
+        # F7-18
+        "training_progress": "Progresso di Addestramento",
+        "restart_service": "RIAVVIA SERVIZIO",
+        "upload_pro_demos": "Carica demo professionali...",
+        "ingestion_flux_speed": "Velocità di Ingestione:",
+        "rap_coach_dashboard": "Dashboard RAP-Coach",
+        "advanced_analytics": "Analisi Avanzata",
+        "knowledge_engine": "Motore della Conoscenza",
+        "ask_your_coach": "Chiedi al tuo Coach",
+        "coach_thinking": "Il coach sta pensando...",
+        "data_ingestion": "Acquisizione Dati",
+        "match_history_title": "Cronologia delle Partite",
+        # F7-26
+        "search": "Cerca",
     },
 }
 

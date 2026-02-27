@@ -24,6 +24,8 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 logger = get_logger("cs2analyzer.match_detail")
 
 # Color constants
+# F7-13: COLOR_GREEN/YELLOW/RED duplicated in match_history_screen.py. Consolidate to
+# apps/desktop_app/theme.py when UI theming is refactored.
 _COLOR_GREEN = (0.30, 0.69, 0.31, 1)
 _COLOR_YELLOW = (1.0, 0.60, 0.0, 1)
 _COLOR_RED = (0.96, 0.26, 0.21, 1)

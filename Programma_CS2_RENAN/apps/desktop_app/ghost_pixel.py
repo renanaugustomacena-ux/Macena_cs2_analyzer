@@ -14,6 +14,9 @@ class GhostPixelValidator(Widget):
     """
     Debug overlay for validating coordinate transformations.
     Enable via console or hidden trigger.
+
+    F7-38: GhostPixel debug overlay is importable in production. No functional risk
+    unless explicitly instantiated. Gate with DEBUG config flag when hardening for release.
     """
 
     map_meta = ObjectProperty(None, allownone=True)

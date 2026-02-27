@@ -10,6 +10,8 @@ from kivymd.uix.card import MDCard
 from kivymd.uix.label import MDLabel
 from kivymd.uix.screen import MDScreen
 
+from sqlmodel import select
+
 from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import PlayerMatchStats
 from Programma_CS2_RENAN.core.config import get_setting
@@ -26,6 +28,8 @@ _RATING_BAD = 0.90
 _MAP_PATTERN = re.compile(r"(de_\w+|cs_\w+|ar_\w+)")
 
 # Rating color coding
+# F7-13: COLOR_GREEN/YELLOW/RED duplicated in match_detail_screen.py. Consolidate to
+# apps/desktop_app/theme.py when UI theming is refactored.
 _COLOR_GREEN = (0.30, 0.69, 0.31, 1)  # #4CAF50
 _COLOR_YELLOW = (1.0, 0.60, 0.0, 1)  # #FF9800
 _COLOR_RED = (0.96, 0.26, 0.21, 1)  # #F44336
@@ -62,16 +66,16 @@ class MatchHistoryScreen(MDScreen):
                 return
 
             with get_db_manager().get_session() as session:
-                matches = (
-                    session.query(PlayerMatchStats)
-                    .filter(
+                # F7-05: Migrated from legacy session.query() to SQLModel convention
+                matches = session.exec(
+                    select(PlayerMatchStats)
+                    .where(
                         PlayerMatchStats.player_name == player,
                         PlayerMatchStats.is_pro == False,  # noqa: E712
                     )
                     .order_by(PlayerMatchStats.match_date.desc())
                     .limit(50)
-                    .all()
-                )
+                ).all()
                 # Detach from session before scheduling UI update
                 match_data = [
                     {

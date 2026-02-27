@@ -90,6 +90,14 @@ class RadarChartWidget(MatplotlibWidget):
         metrics = list(skill_dict.keys())
         values = list(skill_dict.values())
 
+        if len(metrics) < 3:  # F7-36: radar chart needs at least 3 points for a meaningful polygon
+            import logging
+            logging.getLogger("cs2analyzer.widgets").warning(
+                "RadarChartWidget: need at least 3 attributes, got %s", len(metrics)
+            )
+            self.texture = None
+            return
+
         # Close the loop
         metrics += [metrics[0]]
         values += [values[0]]

@@ -37,6 +37,8 @@ else:
     import tty
 
 # --- Path Stabilization ---
+# F7-12: sys.path bootstrap — acceptable for root-level CLI entry points invoked directly.
+# With `pip install -e .` and `python -m` invocation this block is a no-op.
 PROJECT_ROOT = Path(__file__).parent.absolute()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -623,6 +625,11 @@ def _cmd_sys_resources(args):
 
 
 # --- SET ---
+# SECURITY WARNING (F7-01): API keys are stored in plaintext in settings.json.
+# For production use, migrate to the OS credential store via the keyring library:
+#   import keyring; keyring.set_password("cs2analyzer", "STEAM_API_KEY", api_key)
+# Until keyring integration is implemented, ensure settings.json has filesystem
+# permissions restricted to the current user (chmod 600 on Linux/macOS).
 def _cmd_set_steam(args):
     if len(args) < 1:
         return "[error]Usage: set steam <KEY>[/error]"
@@ -632,6 +639,7 @@ def _cmd_set_steam(args):
     return "[success]Steam API key updated.[/success]"
 
 
+# SECURITY WARNING (F7-01): same as above — FACEIT_API_KEY stored in plaintext.
 def _cmd_set_faceit(args):
     if len(args) < 1:
         return "[error]Usage: set faceit <KEY>[/error]"
@@ -658,6 +666,7 @@ def _cmd_set_view(args):
     if isinstance(settings, dict):
         for k, v in settings.items():
             # Mask API keys
+            # F7-30: Showing last 4 chars of key is accepted practice. Acceptable until keyring is integrated.
             display = "****" + str(v)[-4:] if "KEY" in k.upper() and v else str(v)
             lines.append(f"  {k:30s} = {display}")
     else:
@@ -712,16 +721,16 @@ def _cmd_svc_spawn(args):
             _log_dir / f"spawn_{args[0].replace('.py', '')}_{datetime.now().strftime('%H%M%S')}.log"
         )
         stderr_file = open(spawn_log, "w", encoding="utf-8")
-        try:
-            subprocess.Popen(
-                [sys.executable, str(tool_path)],
-                cwd=str(PROJECT_ROOT),
-                creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
-                stdout=subprocess.DEVNULL,
-                stderr=stderr_file,
-            )
-        finally:
-            stderr_file.close()
+        # F7-10: stderr_file intentionally not closed here — the spawned subprocess owns the
+        # handle and will use it beyond this function's scope. The OS closes it on process exit.
+        # Do NOT add finally: stderr_file.close() here.
+        subprocess.Popen(
+            [sys.executable, str(tool_path)],
+            cwd=str(PROJECT_ROOT),
+            creationflags=subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0,
+            stdout=subprocess.DEVNULL,
+            stderr=stderr_file,
+        )
         return f"[success]Spawned '{args[0]}' in background. Errors logged to {spawn_log.name}[/success]"
     except Exception as e:
         return f"[error]Spawn failed: {e}[/error]"
@@ -743,6 +752,8 @@ def _cmd_svc_status(args):
 
 # --- MAINT ---
 def _cmd_maint_clear_cache(args):
+    # F7-32: No dry-run flag. Safe operation (caches regenerate), but consider adding
+    # --dry-run flag for user confidence before deleting many directories.
     count = 0
     for root, dirs, _ in os.walk(PROJECT_ROOT):
         for d in ("__pycache__", ".pytest_cache"):

@@ -178,6 +178,9 @@ class TacticalViewerScreen(MDScreen):
 
     def update_tick_ui(self, dt):
         """Periodic UI update for tick display and button state."""
+        # F7-27: Guard against stale callback firing after screen navigation
+        if not self.manager or self.manager.current != self.name:
+            return
         current = self._playback_vm.get_current_tick()
         self.ids.tick_label.text = f"Tick: {current}"
         self.ids.timeline.current_tick = current

@@ -73,7 +73,7 @@
          theme_text_color: "Custom"
          text_color: 0.2, 0.8, 0.4, 1
       MDLabel:
-         text: "Training Progress"
+         text: i18n.get_text("training_progress", app.lang_trigger)  # F7-18
          font_style: "Title"
          role: "large"
          theme_text_color: "Custom"
@@ -123,6 +123,8 @@
             theme_text_color: "Primary"
             halign: "right"
 
+# F7-39: Two full-resolution FitImage textures held in memory for crossfade transitions.
+# Acceptable trade-off for smooth UX (~64MB GPU on 4K). Profile if memory is constrained.
 <FadingBackground@FloatLayout>:
    canvas.before:
       Color:
@@ -209,7 +211,7 @@ FloatLayout:
             disabled: app.service_active
             on_release: app.soft_restart_service()
             MDButtonText:
-               text: "RESTART SERVICE"
+               text: i18n.get_text("restart_service", app.lang_trigger)  # F7-18
                font_style: "Body"
                role: "small"
                theme_text_color: "Custom"
@@ -298,7 +300,7 @@ FloatLayout:
                      text_color: 0.4, 0.7, 1, 1
                      adaptive_height: True
                MDLabel:
-                  text: "Upload pro demos directly or point the coach to a folder."
+                  text: i18n.get_text("upload_pro_demos", app.lang_trigger)  # F7-18
                   font_style: "Body"
                   role: "small"
                   theme_text_color: "Secondary"
@@ -316,7 +318,7 @@ FloatLayout:
                         text: "Pro Folder"
 
                MDLabel:
-                  text: "Ingestion Flux Speed:"
+                  text: i18n.get_text("ingestion_flux_speed", app.lang_trigger)  # F7-18
                   font_style: "Body"
                   role: "small"
                   theme_text_color: "Hint"
@@ -496,7 +498,7 @@ FloatLayout:
                icon: "home"
                on_release: app.switch_screen("home")
          MDTopAppBarTitle:
-            text: "RAP-Coach Dashboard"
+            text: i18n.get_text("rap_coach_dashboard", app.lang_trigger)  # F7-18
          MDTopAppBarTrailingButtonContainer:
             MDActionTopAppBarButton:
                icon: "chat-outline"
@@ -553,7 +555,7 @@ FloatLayout:
                radius: [15, ]
                md_bg_color: 0.15, 0.1, 0.2, 1
                MDLabel:
-                  text: "Advanced Analytics"
+                  text: i18n.get_text("advanced_analytics", app.lang_trigger)  # F7-18
                   bold: True
                   theme_text_color: "Custom"
                   text_color: 0.8, 0.4, 1, 1
@@ -629,7 +631,7 @@ FloatLayout:
                      text_color: 0.2, 0.8, 0.4, 1
                      pos_hint: {"center_y": .5}
                   MDLabel:
-                     text: "Knowledge Engine"
+                     text: i18n.get_text("knowledge_engine", app.lang_trigger)  # F7-18
                      bold: True
                      theme_text_color: "Custom"
                      text_color: 0.3, 0.9, 0.5, 1
@@ -689,7 +691,7 @@ FloatLayout:
                text_color: 0.3, 0.8, 1, 1
                pos_hint: {"center_y": .5}
             MDLabel:
-               text: "Ask Your Coach"
+               text: i18n.get_text("ask_your_coach", app.lang_trigger)  # F7-18
                bold: True
                theme_text_color: "Custom"
                text_color: 0.4, 0.85, 1, 1
@@ -730,7 +732,7 @@ FloatLayout:
          # Typing indicator
          MDLabel:
             id: chat_typing_label
-            text: "Coach is thinking..."
+            text: i18n.get_text("coach_thinking", app.lang_trigger)  # F7-18
             font_style: "Label"
             role: "small"
             theme_text_color: "Custom"
@@ -748,7 +750,7 @@ FloatLayout:
             MDButton:
                style: "outlined"
                adaptive_width: True
-               on_release: root.send_quick_action("How can I improve my positioning?")
+               on_release: root.send_quick_action(i18n.get_text("quick_action_positioning", app.lang_trigger))  # F7-17
                MDButtonText:
                   text: "Positioning"
                   font_style: "Label"
@@ -756,7 +758,7 @@ FloatLayout:
             MDButton:
                style: "outlined"
                adaptive_width: True
-               on_release: root.send_quick_action("Analyze my utility usage")
+               on_release: root.send_quick_action(i18n.get_text("quick_action_utility", app.lang_trigger))  # F7-17
                MDButtonText:
                   text: "Utility"
                   font_style: "Label"
@@ -764,7 +766,7 @@ FloatLayout:
             MDButton:
                style: "outlined"
                adaptive_width: True
-               on_release: root.send_quick_action("What should I focus on improving?")
+               on_release: root.send_quick_action(i18n.get_text("quick_action_focus", app.lang_trigger))  # F7-17
                MDButtonText:
                   text: "What to improve?"
                   font_style: "Label"
@@ -1046,6 +1048,7 @@ FloatLayout:
                icon: "home"
                on_release: app.switch_screen("home")
          MDTopAppBarTitle:
+            # F7-31: current_topic_title property required on HelpScreen. Depends on F7-09 fix.
             text: root.current_topic_title
       MDBoxLayout:
          orientation: "horizontal"
@@ -1197,7 +1200,7 @@ FloatLayout:
             # --- Data Ingestion Control ---
             SectionHeader:
                icon: "database-sync"
-               title: "Data Ingestion"
+               title: i18n.get_text("data_ingestion", app.lang_trigger)  # F7-18
 
             AppSettingItem:
                title: "Ingestion Mode:"
@@ -1519,7 +1522,7 @@ FloatLayout:
                icon: "arrow-left"
                on_release: app.switch_screen("home")
          MDTopAppBarTitle:
-            text: "Match History"
+            text: i18n.get_text("match_history_title", app.lang_trigger)  # F7-18
          MDTopAppBarTrailingButtonContainer:
             MDActionTopAppBarButton:
                icon: "chart-line"

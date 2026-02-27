@@ -9,6 +9,7 @@ Follows the same pattern as tactical_viewmodels.py:
 - Clock.schedule_once to marshal results back to the UI thread
 """
 
+import threading
 from threading import Thread
 from typing import Optional
 
@@ -32,6 +33,7 @@ class CoachingChatViewModel(EventDispatcher):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
         self._engine = None
+        self._messages_lock = threading.Lock()  # F7-24: protect messages list from concurrent access
 
     # ------------------------------------------------------------------
     # Lazy engine access (avoids heavy import at startup)
@@ -91,7 +93,8 @@ class CoachingChatViewModel(EventDispatcher):
             return
 
         # Immediately show user message in UI
-        self.messages.append({"role": "user", "content": text})
+        with self._messages_lock:  # F7-24: guard concurrent message list access
+            self.messages.append({"role": "user", "content": text})
         self.is_loading = True
 
         def _respond():
@@ -128,5 +131,6 @@ class CoachingChatViewModel(EventDispatcher):
         logger.info("Chat session started")
 
     def _on_response(self, response: str):
-        self.messages.append({"role": "assistant", "content": response})
+        with self._messages_lock:  # F7-24: lock before appending assistant response
+            self.messages.append({"role": "assistant", "content": response})
         self.is_loading = False

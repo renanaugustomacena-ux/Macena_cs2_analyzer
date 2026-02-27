@@ -149,8 +149,17 @@ class WizardScreen(MDScreen):
         self.ids.content_area.add_widget(l)
         self.ids.next_btn.text = i18n.get_text("wizard_launch_btn", self.app.lang_trigger)
 
+    def build_demo_path(self):
+        # F7-03: Stub — demo_path step not yet implemented.
+        # Normal flow skips this step (brain_path → finish via validate_brain_step()).
+        # Implement when a dedicated demo-path selection wizard step is required.
+        app_logger.debug("build_demo_path() called — step not yet implemented, skipping")
+        self.load_step("finish")
+
     def _get_available_drives(self):
         """Returns a list of available drive letters on Windows."""
+        # F7-06: Duplicate of _get_available_drives() in main.py (~L1600). Consolidation
+        # deferred to avoid blast radius. When modifying drive enumeration logic, update both copies.
         import string
 
         if platform == "win":

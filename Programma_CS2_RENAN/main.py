@@ -418,6 +418,7 @@ class CS2AnalyzerApp(MDApp):
     selected_demo = StringProperty("")
 
     # Real-Time Training Metrics
+    # F7-19: Properties required by TrainingStatusCard in layout.kv
     current_epoch = NumericProperty(0)
     total_epochs = NumericProperty(0)
     train_loss = NumericProperty(0.0)
@@ -722,6 +723,9 @@ class CS2AnalyzerApp(MDApp):
         threading.Thread(target=_sequence, daemon=True).start()
 
     _ml_status_running = False
+    # F7-23: Progressive backoff when daemon is offline
+    _poll_offline_strikes = 0
+    _POLL_INTERVALS = [10, 30, 60]  # seconds: normal, first-strike, max backoff
 
     def _update_ml_status(self, dt):
         """Implementation of Step 1 [OPERABILITY]: Trigger background status refresh."""
@@ -731,7 +735,7 @@ class CS2AnalyzerApp(MDApp):
         threading.Thread(target=self._threaded_status_update, daemon=True).start()
 
     def _threaded_status_update(self):
-        from datetime import datetime
+        from datetime import datetime, timezone  # F7-04: timezone for utcnow replacement
 
         from Programma_CS2_RENAN.backend.storage.db_models import (
             CoachState,
@@ -756,7 +760,7 @@ class CS2AnalyzerApp(MDApp):
                     c_state = s_k.exec(select(CoachState)).first()
                     if c_state:
                         if c_state.last_heartbeat:
-                            now = datetime.utcnow()
+                            now = datetime.now(timezone.utc)  # F7-04: utcnow() deprecated
                             delta = (now - c_state.last_heartbeat).total_seconds()
                             is_active = delta < 300
                             status_text = (
@@ -835,6 +839,17 @@ class CS2AnalyzerApp(MDApp):
         self.val_loss = v_loss
         self.eta_seconds = eta
 
+        # F7-23: Progressive backoff when daemon is offline
+        if not active:
+            self._poll_offline_strikes = min(self._poll_offline_strikes + 1, 2)
+            next_interval = self._POLL_INTERVALS[self._poll_offline_strikes]
+            Clock.unschedule(self._update_ml_status)
+            Clock.schedule_interval(self._update_ml_status, next_interval)
+        elif self._poll_offline_strikes > 0:
+            self._poll_offline_strikes = 0
+            Clock.unschedule(self._update_ml_status)
+            Clock.schedule_interval(self._update_ml_status, self._POLL_INTERVALS[0])
+
     def _populate_active_tasks(self, tasks):
         """Updates the ingestion task list on the Coach Dashboard."""
         from kivymd.uix.boxlayout import MDBoxLayout
@@ -909,7 +924,10 @@ class CS2AnalyzerApp(MDApp):
                 latest_message = notifs[-1].message
                 latest_severity = notifs[-1].severity
 
-                # Mark all as read
+                # F7-37: Notifications are marked as read immediately on retrieval,
+                # even if the user is not on CoachScreen. This means notifications can
+                # be silently consumed. For guaranteed delivery acknowledgment, mark read
+                # only in CoachScreen.on_enter().
                 for n in notifs:
                     n.is_read = True
                     s.add(n)
@@ -968,19 +986,25 @@ class CS2AnalyzerApp(MDApp):
         for screen in sm.screens:
             self._deep_widget_refresh(screen)
 
-    def _deep_widget_refresh(self, widget):
-        if hasattr(widget, "font_style"):
-            s = widget.font_style
-            widget.font_style = "Body"
-            widget.font_style = s
-        if hasattr(widget, "canvas"):
-            widget.canvas.ask_update()
-        # Explicit theme refresh for MDLabel
-        if hasattr(widget, "_on_theme_cls_update"):
-            widget._on_theme_cls_update(self.theme_cls, None)
-        if hasattr(widget, "children"):
-            for child in widget.children:
-                self._deep_widget_refresh(child)
+    def _deep_widget_refresh(self, widget, _max_depth=50):
+        # F7-16: Iterative BFS to avoid stack overflow on deep widget trees
+        queue = [(widget, 0)]
+        while queue:
+            current, depth = queue.pop(0)
+            if depth > _max_depth:
+                app_logger.warning("_deep_widget_refresh: max depth %s reached, stopping", _max_depth)
+                break
+            if hasattr(current, "font_style"):
+                s = current.font_style
+                current.font_style = "Body"
+                current.font_style = s
+            if hasattr(current, "canvas"):
+                current.canvas.ask_update()
+            # Explicit theme refresh for MDLabel
+            if hasattr(current, "_on_theme_cls_update"):
+                current._on_theme_cls_update(self.theme_cls, None)
+            if hasattr(current, "children"):
+                queue.extend((child, depth + 1) for child in current.children)
 
     def apply_theme_styles(self, name):
         # KivyMD 2.x requires hex colors or CSS color names (not old palette names)
@@ -1242,6 +1266,7 @@ class CS2AnalyzerApp(MDApp):
         dialog = None
 
         def _select_drive(drive_path):
+            nonlocal dialog  # F7-02: explicit nonlocal reference prevents stale closure capture
             if dialog:
                 dialog.dismiss()
             self.file_manager.show(drive_path)
@@ -1279,7 +1304,7 @@ class CS2AnalyzerApp(MDApp):
         self.service_active = not self.service_active
         active = self.service_active
 
-        from datetime import datetime
+        from datetime import datetime, timezone  # F7-04: timezone for utcnow replacement
 
         from Programma_CS2_RENAN.backend.storage.db_models import CoachState
 
@@ -1293,7 +1318,7 @@ class CS2AnalyzerApp(MDApp):
 
                 # Update State
                 state.ingest_status = "Scanning" if active else "Paused"
-                state.last_updated = datetime.utcnow()
+                state.last_updated = datetime.now(timezone.utc)  # F7-04: utcnow() deprecated
                 s.add(state)
                 s.commit()
 
@@ -1585,7 +1610,10 @@ class CS2AnalyzerApp(MDApp):
             )
 
         # Generate radar plot
+        import atexit
         out_path = os.path.join(get_resource_path("data"), "temp_radar.png")
+        # F7-11: Register temp file for cleanup on app exit
+        atexit.register(lambda: os.path.exists(out_path) and os.unlink(out_path))
         try:
             generate_performance_radar(data["user_stats"], data["pro_baseline"], out_path)
         except Exception as e:
@@ -1698,8 +1726,16 @@ class CS2AnalyzerApp(MDApp):
 
     def save_hardware_budget(self, budget_type, value):
         """Update global hardware limits in the database. DEPRECATED - Sliders should be removed from UI."""
+        import warnings
         import threading
-        from datetime import datetime
+        from datetime import datetime, timezone  # F7-04: timezone for utcnow replacement
+
+        # F7-08: deprecation warning — kept for backward compatibility
+        warnings.warn(
+            "save_hardware_budget() is deprecated. Use save_user_setting('HARDWARE_BUDGET', ...) directly.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
         from Programma_CS2_RENAN.backend.storage.db_models import CoachState
 
@@ -1716,7 +1752,7 @@ class CS2AnalyzerApp(MDApp):
                             state.ram_limit = val
                         elif budget_type == "gpu":
                             state.gpu_limit = val
-                        state.last_updated = datetime.utcnow()
+                        state.last_updated = datetime.now(timezone.utc)  # F7-04: utcnow() deprecated
                         s.add(state)
                         s.commit()
             except Exception as e:

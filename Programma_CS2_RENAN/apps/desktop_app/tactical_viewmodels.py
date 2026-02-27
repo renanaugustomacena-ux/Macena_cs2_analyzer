@@ -15,6 +15,7 @@ maintainability, testability, and separation of concerns.
 """
 
 import logging
+import threading
 from dataclasses import is_dataclass, replace
 from threading import Thread
 from typing import Any, Callable, List, Optional, Tuple
@@ -192,6 +193,7 @@ class TacticalChronovisorViewModel(EventDispatcher):
         self._critical_moments: List = []
         self._on_scan_complete_callback: Optional[Callable] = None
         self._on_navigate_callback: Optional[Callable] = None
+        self._scan_cancel = threading.Event()  # F7-25: cooperative cancellation flag
 
     def set_on_scan_complete(self, callback: Callable):
         """Set callback for when scan completes. Receives (cms, count)."""
@@ -219,9 +221,14 @@ class TacticalChronovisorViewModel(EventDispatcher):
         self.is_scanning = True
         self.scan_complete = False
         self.scan_error = ""
+        self._scan_cancel.clear()  # F7-25: reset cancellation flag before new scan
 
         def _scan():
             try:
+                if self._scan_cancel.is_set():  # F7-25: pre-scan cancellation check
+                    Clock.schedule_once(lambda dt: self._on_scan_done([]), 0)
+                    return
+
                 from Programma_CS2_RENAN.backend.nn.rap_coach.chronovisor_scanner import (
                     ChronovisorScanner,
                 )
@@ -313,6 +320,11 @@ class TacticalChronovisorViewModel(EventDispatcher):
                 )
             return (target.start_tick, f"{target.type.upper()}: {target.description}")
         return None
+
+    def cancel_scan(self):
+        """Request cancellation of an in-progress scan."""
+        # F7-25: Sets the cancel event; background thread checks it cooperatively
+        self._scan_cancel.set()
 
     def clear(self):
         """Clear all critical moments."""

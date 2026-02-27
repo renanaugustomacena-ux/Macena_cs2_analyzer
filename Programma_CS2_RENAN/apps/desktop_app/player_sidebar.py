@@ -341,6 +341,14 @@ class PlayerSidebar(BoxLayout):
         else:
             self.card.hide()
 
+    def clear_all(self):
+        """Clear all player items from the sidebar. Call on match switch."""
+        # F7-14: Explicit clear prevents cache growth across matches
+        for key in list(self._player_items.keys()):
+            widget, parts = self._player_items.pop(key)
+            self.player_list.remove_widget(widget)
+        self.card.hide()
+
     def _on_player_clicked(self, pid):
         app = MDApp.get_running_app()
         # Find the tactical_viewer screen

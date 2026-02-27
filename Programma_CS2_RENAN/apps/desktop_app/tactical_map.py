@@ -288,7 +288,9 @@ class TacticalMap(Widget):
 
         if name not in self._name_textures:
             if len(self._name_textures) >= self._NAME_TEXTURE_CACHE_LIMIT:
-                self._name_textures.clear()
+                # F7-21: Evict oldest entry (FIFO). clear() is too aggressive.
+                oldest_key = next(iter(self._name_textures))
+                del self._name_textures[oldest_key]
             # [VISUAL] Smaller font for smaller player icons
             lbl = CoreLabel(text=name, font_size=9, color=(1, 1, 1, 1))
             lbl.refresh()
@@ -509,6 +511,8 @@ class TacticalMap(Widget):
             group.add(Ellipse(pos=(apx - 3, apy - 3), size=(6, 6)))
 
     def _world_to_screen(self, x, y):
+        # F7-22: Uses min(width, height) for uniform scaling — correctly handles non-square
+        # widgets by centering the 1024×1024 map area and applying offset_x/offset_y.
         map_size = min(self.width, self.height)
         offset_x = (self.width - map_size) / 2
         offset_y = (self.height - map_size) / 2

@@ -60,7 +60,7 @@ class TimelineScrubber(Widget):
 
         # Normalized x (0.0 to 1.0)
         nx = (touch.x - self.x) / self.width
-        nx = max(0.0, min(1.0, nx))
+        nx = max(0.0, min(1.0, nx))  # F7-33: clamp to [0.0, 1.0] — prevents out-of-range seeks
 
         target_tick = int(nx * self.max_tick)
 

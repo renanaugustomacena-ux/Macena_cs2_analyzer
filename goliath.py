@@ -18,6 +18,8 @@ from pathlib import Path
 from typing import Optional
 
 # --- Path Stabilization ---
+# F7-12: sys.path bootstrap — acceptable for root-level CLI entry points invoked directly.
+# With `pip install -e .` and `python -m` invocation this block is a no-op.
 PROJECT_ROOT = Path(__file__).parent.absolute()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
@@ -82,6 +84,8 @@ class GoliathOrchestrator:
         signal.signal(signal.SIGINT, self._signal_handler)
 
     def _signal_handler(self, sig, frame):
+        # F7-29: TODO — terminate any running child processes (e.g. spawned build workers)
+        # before exit to prevent orphaned processes.
         console.print("\n[error]>>> Goliath Terminated by User.[/error]")
         logger.warning("Goliath session interrupted by user.")
         sys.exit(0)
@@ -101,7 +105,7 @@ class GoliathOrchestrator:
         console.print("[command]>>> Initiating Build Subsystem[/command]")
         pipeline = IndustrialBuildPipeline(test_only=test_only)
         if pipeline.execute():
-            logger.info(f"Build completed (Test Mode: {test_only})")
+            logger.info("Build completed (Test Mode: %s)", test_only)  # F7-07: %s format
         else:
             logger.error("Build failed")
             sys.exit(1)
@@ -181,11 +185,11 @@ class GoliathOrchestrator:
             else:
                 console.print("    [success]No meta shifts detected[/success]")
 
-            logger.info(f"Baseline check: {card_count} cards, {len(shifted)} shifts")
+            logger.info("Baseline check: %s cards, %s shifts", card_count, len(shifted))  # F7-07
 
         except Exception as e:
             console.print(f"[error]Baseline check failed:[/error] {e}")
-            logger.error(f"Baseline check failed: {e}")
+            logger.error("Baseline check failed: %s", e)  # F7-07
 
     def run_hospital(self, department: Optional[str]):
         # The Hospital is complex and internal, we wrap it simply
@@ -216,6 +220,9 @@ class GoliathOrchestrator:
                         "PHARMACY": hospital._run_pharmacy,
                         "TOOL_CLINIC": hospital._run_tool_clinic,
                     }
+                    # F7-34: dept_map does not include all Department enum values. Unmapped
+                    # departments fall through to full diagnostic. Add assertion coverage when
+                    # new departments are added: assert set(Department) == set(dept_map.keys())
                     if dept_key in dept_map:
                         dept_map[dept_key]()
                     else:
@@ -293,7 +300,7 @@ def main():
 
     except Exception as e:
         console.print_exception()
-        logger.critical(f"Unhandled exception in {args.command}: {e}")
+        logger.critical("Unhandled exception in %s: %s", args.command, e)  # F7-07
         sys.exit(1)
 
 
