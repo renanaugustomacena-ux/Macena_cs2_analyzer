@@ -197,10 +197,14 @@ class CoachingService:
             if self.use_hybrid and player_stats:
                 self._generate_hybrid_insights(player_name, demo_name, player_stats, map_name)
             else:
+                # G-08: fallback to traditional coaching instead of zero output
                 logger.warning(
-                    f"COPER fallback: no hybrid available and no deviations — "
-                    f"no coaching generated for {player_name} on {demo_name}"
+                    "COPER fallback: using traditional coaching for %s on %s",
+                    player_name,
+                    demo_name,
                 )
+                corrections = generate_corrections(deviations, rounds_played)
+                _save_corrections_as_insights(self.db_manager, player_name, demo_name, corrections)
 
     def _format_coper_message(self, advice, baseline_note: str = "") -> str:
         """Format COPER advice into readable message."""

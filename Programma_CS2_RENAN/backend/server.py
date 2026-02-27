@@ -20,7 +20,9 @@ from fastapi import BackgroundTasks, Depends, FastAPI, HTTPException, Request
 from pydantic import BaseModel
 from sqlmodel import Session, select
 
-from Programma_CS2_RENAN.core.logger import app_logger
+from Programma_CS2_RENAN.observability.logger_setup import get_logger
+
+app_logger = get_logger("cs2analyzer.server")
 
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 

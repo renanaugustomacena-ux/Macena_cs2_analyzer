@@ -9,7 +9,9 @@ from Programma_CS2_RENAN.backend.nn.persistence import load_nn
 from Programma_CS2_RENAN.backend.nn.rap_coach.model import RAP_POSITION_SCALE
 from Programma_CS2_RENAN.backend.processing.feature_engineering.vectorizer import FeatureExtractor
 from Programma_CS2_RENAN.backend.processing.tensor_factory import get_tensor_factory
-from Programma_CS2_RENAN.core.logger import app_logger
+from Programma_CS2_RENAN.observability.logger_setup import get_logger
+
+app_logger = get_logger("cs2analyzer.nn.ghost_engine")
 
 
 class GhostEngine:

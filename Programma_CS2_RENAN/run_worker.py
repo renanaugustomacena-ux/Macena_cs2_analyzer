@@ -1,7 +1,7 @@
 import os
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 from sqlmodel import func, select
@@ -52,7 +52,7 @@ def _mark_task_status(db, task_id, status):
         t = session.get(IngestionTask, task_id)
         if t:
             t.status = status
-            t.updated_at = datetime.utcnow()
+            t.updated_at = datetime.now(timezone.utc)
             session.add(t)
             session.commit()
 
@@ -106,7 +106,7 @@ def _mark_task_status_failed(db, task_id, error_msg):
         if t:
             t.status = "failed"
             t.error_message = error_msg
-            t.updated_at = datetime.utcnow()
+            t.updated_at = datetime.now(timezone.utc)
             session.add(t)
             session.commit()
 

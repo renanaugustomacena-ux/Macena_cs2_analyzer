@@ -2,7 +2,7 @@ import hashlib
 import os
 import shutil
 import sys
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 import pandas as pd
@@ -329,7 +329,7 @@ def process_queued_tasks(db_manager, storage, is_pro, high_priority, limit=0):
         with db_manager.get_session() as session:
             session.add(task)
             task.status = "processing"
-            task.updated_at = datetime.utcnow()
+            task.updated_at = datetime.now(timezone.utc)
             session.commit()
 
         # Update progress in CoachState
@@ -352,7 +352,7 @@ def process_queued_tasks(db_manager, storage, is_pro, high_priority, limit=0):
                 session.add(task)
                 task.status = "completed"  # Mark as completed to remove from queue
                 task.error_message = "Duplicate - already ingested"
-                task.updated_at = datetime.utcnow()
+                task.updated_at = datetime.now(timezone.utc)
                 session.commit()
             processed_count += 1
             continue  # Skip to next demo
@@ -363,7 +363,7 @@ def process_queued_tasks(db_manager, storage, is_pro, high_priority, limit=0):
             session.add(task)
             task.status = "completed" if success else "failed"
             task.error_message = msg
-            task.updated_at = datetime.utcnow()
+            task.updated_at = datetime.now(timezone.utc)
             session.commit()
 
         processed_count += 1

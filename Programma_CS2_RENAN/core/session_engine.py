@@ -288,6 +288,18 @@ def _teacher_daemon_loop():
 
                 # Meta-shift detection after retraining (Proposal 11)
                 _last_baseline = _check_meta_shift(_last_baseline)
+
+                # G-07: wire belief calibration to Teacher daemon after each retraining cycle
+                try:
+                    from Programma_CS2_RENAN.backend.analysis.belief_model import (
+                        AdaptiveBeliefCalibrator,
+                    )
+
+                    calibrator = AdaptiveBeliefCalibrator()
+                    calibrator.auto_calibrate(get_db_manager())
+                    logger.info("Belief calibration completed after retraining")
+                except Exception as cal_err:
+                    logger.warning("Belief calibration non-fatal: %s", cal_err)
             else:
                 logger.debug("Teacher: retraining not triggered this cycle")
         except Exception as e:

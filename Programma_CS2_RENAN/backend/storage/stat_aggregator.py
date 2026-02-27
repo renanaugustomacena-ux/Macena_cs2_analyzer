@@ -7,7 +7,7 @@ Ensures that raw crawled data is correctly mapped to the persistent schema.
 
 import json
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any, Dict
 
 from sqlmodel import select
@@ -45,7 +45,7 @@ class StatCardAggregator:
                 player = ProPlayer(hltv_id=hltv_id, nickname=nickname)
                 session.add(player)
 
-            player.last_updated = datetime.utcnow()
+            player.last_updated = datetime.now(timezone.utc)
 
             # 2. Update/Create Stat Card
             # We store one card per player per 'all_time' by default
@@ -72,7 +72,7 @@ class StatCardAggregator:
 
             # Store full blob in JSON for the Bridge to use later
             card.detailed_stats_json = json.dumps(spider_data)
-            card.last_updated = datetime.utcnow()
+            card.last_updated = datetime.now(timezone.utc)
 
             session.commit()
             logger.info("Persisted Player Card for %s [%s]", nickname, hltv_id)
@@ -95,5 +95,5 @@ class StatCardAggregator:
                 session.add(team)
 
             team.world_rank = team_data.get("world_rank")
-            team.last_updated = datetime.utcnow()
+            team.last_updated = datetime.now(timezone.utc)
             session.commit()

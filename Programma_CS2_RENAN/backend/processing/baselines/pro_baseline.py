@@ -268,7 +268,7 @@ def calculate_deviations(player_stats, baseline):
 # ---------------------------------------------------------------------------
 
 import math
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List
 
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
@@ -320,7 +320,7 @@ class TemporalBaselineDecay:
             Weight in [MIN_WEIGHT, 1.0].
         """
         if reference_date is None:
-            reference_date = datetime.utcnow()
+            reference_date = datetime.now(timezone.utc)
 
         age_days = (reference_date - stat_date).total_seconds() / 86400.0
         if age_days <= 0:

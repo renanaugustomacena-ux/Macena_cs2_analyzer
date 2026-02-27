@@ -7,7 +7,9 @@ from typing import Optional
 from playwright.sync_api import sync_playwright
 
 from Programma_CS2_RENAN.backend.storage.storage_manager import StorageManager
-from Programma_CS2_RENAN.core.logger import app_logger
+from Programma_CS2_RENAN.observability.logger_setup import get_logger
+
+app_logger = get_logger("cs2analyzer.ingestion.downloader")
 
 # --- Configuration ---
 # DOWNLOAD_DIR is now resolved dynamically via StorageManager

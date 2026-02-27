@@ -17,7 +17,9 @@ from Programma_CS2_RENAN.backend.storage.db_models import (
     PlayerProfile,
     PlayerTickState,
 )
-from Programma_CS2_RENAN.core.logger import app_logger
+from Programma_CS2_RENAN.observability.logger_setup import get_logger
+
+app_logger = get_logger("cs2analyzer.nn.coach_manager")
 
 # Tick-level feature names aligned with FeatureExtractor (METADATA_DIM=25).
 # Used by the canonical training path (TrainingOrchestrator + StateReconstructor)

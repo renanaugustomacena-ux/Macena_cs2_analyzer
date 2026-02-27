@@ -124,8 +124,8 @@ class HLTVStatFetcher:
             resp = requests.get(url, headers=self.HEADERS, timeout=10)
             if resp.status_code == 200:
                 return parser_func(BeautifulSoup(resp.content, "html.parser"))
-        except Exception:
-            pass  # Fail silently for sub-stats to avoid crashing the whole ingestion
+        except Exception as e:
+            logger.debug("Sub-stat fetch skipped for %s: %s", url, e)
         return {}
 
     def _safe_float(self, text: str) -> float:
