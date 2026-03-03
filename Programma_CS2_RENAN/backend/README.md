@@ -2,7 +2,7 @@
 
 # Backend
 
-Core business logic layer for the Macena CS2 Analyzer, organized into 13 sub-packages following domain-driven design principles.
+Core business logic layer for the Macena CS2 Analyzer, organized into 14 sub-packages following domain-driven design principles.
 
 ## Overview
 

@@ -2,7 +2,7 @@
 
 # Backend
 
-Livello di logica di business del Macena CS2 Analyzer, organizzato in 13 sotto-pacchetti con principi di design domain-driven.
+Livello di logica di business del Macena CS2 Analyzer, organizzato in 14 sotto-pacchetti con principi di design domain-driven.
 
 ## Panoramica
 

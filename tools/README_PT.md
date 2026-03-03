@@ -6,7 +6,7 @@ Ferramentas de projeto no nível raiz para validação, diagnóstico e manutenç
 
 ## Ferramentas de Validação
 
-- `headless_validator.py` — Gate de validação headless (79 verificações, obrigatório pré-commit)
+- `headless_validator.py` — Gate de validação headless (245+ verificacoes em 23 fases, obrigatorio pre-commit)
 - `verify_all_safe.py` — Verificação de segurança em todos os módulos
 - `portability_test.py` — Verificações de portabilidade multiplataforma
 - `run_console_boot.py`, `verify_main_boot.py` — Ferramentas de verificação de boot

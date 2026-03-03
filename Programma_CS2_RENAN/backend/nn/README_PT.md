@@ -7,7 +7,7 @@ Infraestrutura ML completa com 6 arquiteturas de modelos e pipeline de treinamen
 ## Arquiteturas dos Modelos
 
 ### RAP Coach (`rap_coach/`)
-Arquitetura pedagógica de 6 camadas:
+Arquitetura pedagógica de 7 camadas:
 - **Perception Layer** — Extração de features baseada em ResNet de situações táticas
 - **Memory Layer** — Híbrido LTC-Hopfield com 512 slots associativos para retenção de padrões
 - **Strategy Layer** — Mecanismo de atenção contextual para síntese de decisões táticas
@@ -46,7 +46,7 @@ Previsão de probabilidade de vitória do round baseada em economia, posicioname
 ## Subpacotes
 
 - `rap_coach/` — Implementação do modelo RAP (model.py, memory.py, trainer.py)
-- `advanced/` — Experimentos VL-JEPA, BrainBridge, Superposition
+- `advanced/` — Stub de modulos experimentais (modulos originais removidos em G-06)
 - `inference/` — GhostEngine para previsão em tempo real
 - `layers/` — Camadas personalizadas (SuperpositionLayer, mecanismos de atenção)
 

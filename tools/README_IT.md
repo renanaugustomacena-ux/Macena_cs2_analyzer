@@ -6,7 +6,7 @@ Strumenti di progetto a livello root per validazione, diagnostica e manutenzione
 
 ## Strumenti di Validazione
 
-- `headless_validator.py` — Gate di validazione headless (79 controlli, obbligatorio pre-commit)
+- `headless_validator.py` — Gate di validazione headless (245+ controlli in 23 fasi, obbligatorio pre-commit)
 - `verify_all_safe.py` — Verifica sicurezza su tutti i moduli
 - `portability_test.py` — Controlli portabilità cross-platform
 - `run_console_boot.py`, `verify_main_boot.py` — Strumenti verifica boot

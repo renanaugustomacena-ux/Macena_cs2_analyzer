@@ -2,7 +2,7 @@
 
 # Backend
 
-Camada de logica de negocios do Macena CS2 Analyzer, organizada em 13 sub-pacotes seguindo principios de design orientado ao dominio.
+Camada de logica de negocios do Macena CS2 Analyzer, organizada em 14 sub-pacotes seguindo principios de design orientado ao dominio.
 
 ## Visao Geral
 

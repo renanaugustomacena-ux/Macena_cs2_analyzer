@@ -10,24 +10,87 @@
 
 Macena CS2 Analyzer e uma aplicacao desktop que funciona como um coach pessoal de IA para Counter-Strike 2. Ele analisa arquivos demo profissionais e do usuario, treina multiplos modelos de redes neurais e entrega coaching tatico personalizado comparando sua gameplay com padroes profissionais.
 
-O sistema aprende com as melhores partidas profissionais ja jogadas e adapta seu coaching ao seu estilo de jogo individual — seja voce um AWPer, entry fragger, support ou qualquer outro papel.
+O sistema aprende com as melhores partidas profissionais ja jogadas e adapta seu coaching ao seu estilo de jogo individual — seja voce um AWPer, entry fragger, support ou qualquer outro papel. A pipeline de coaching funde previsoes de machine learning com conhecimento tatico recuperado, analise baseada em teoria dos jogos e modelagem bayesiana de crencas para produzir conselhos acionaveis e context-aware.
+
+Diferente de ferramentas de coaching estaticas com dicas pre-escritas, este sistema constroi sua inteligencia a partir de dados reais de gameplay profissional. Na primeira execucao, as redes neurais tem pesos aleatorios e zero conhecimento tatico. Cada demo que voce fornece torna o coach mais inteligente, mais refinado e mais personalizado.
+
+---
+
+## Indice
+
+- [Funcionalidades Principais](#funcionalidades-principais)
+- [Requisitos do Sistema](#requisitos-do-sistema)
+- [Inicio Rapido](#inicio-rapido)
+- [Panorama Arquitetural](#panorama-arquitetural)
+- [Mapas Suportados](#mapas-suportados)
+- [Stack Tecnologico](#stack-tecnologico)
+- [Estrutura do Projeto](#estrutura-do-projeto)
+- [Pontos de Entrada](#pontos-de-entrada)
+- [Validacao e Qualidade](#validacao-e-qualidade)
+- [Suporte Multi-Idioma](#suporte-multi-idioma)
+- [Recursos de Seguranca](#recursos-de-seguranca)
+- [Maturidade do Sistema](#maturidade-do-sistema)
+- [Documentacao](#documentacao)
+- [Alimentando o Coach](#alimentando-o-coach)
+- [Solucao de Problemas](#solucao-de-problemas)
+- [Licenca](#licenca)
+- [Autor](#autor)
 
 ---
 
 ## Funcionalidades Principais
 
-- **Pipeline de Coaching IA** — Cadeia de fallback de 4 niveis (COPER > Hibrido > RAG > Base) que funde previsoes ML com conhecimento tatico recuperado
-- **6 Subsistemas de IA** — Encoder JEPA, alinhamento visao-linguagem VL-JEPA, RAP Coach (arquitetura de 6 camadas com memoria LTC-Hopfield), LSTM+MoE, Neural Role Head, modelos bayesianos de crenca
-- **Motor Tri-Daemon** — Automacao em background com daemons Hunter (scanner de arquivos), Digester (processador de demos) e Teacher (treinador de modelos)
-- **Observatorio de Introspeccao do Coach** — Integracao TensorBoard com maquina de estados de maturidade, projetor de embeddings e rastreamento de conviccao
-- **Analise de Demos** — Parsing a nivel de tick dos arquivos `.dem` via demoparser2, com calculo de rating HLTV 2.0, detalhamento por round e rastreamento de momentum
-- **Analise de Teoria dos Jogos** — Arvores expectiminimax, estimativa bayesiana de probabilidade de morte, indice de engano, analise de distancia de engajamento
-- **App Desktop** — Interface Kivy + KivyMD com visualizador tatico 2D, historico de partidas, dashboard de performance, chat com coach e graficos radar
-- **Inteligencia Espacial** — Suporte a mapas multi-nivel (Nuke, Vertigo), mapeamento de coordenadas com precisao de pixel, tratamento de Z-cutoff
-- **Gating de Maturidade em 3 Estagios** — Modelos progridem por CALIBRACAO > APRENDIZADO > MADURO com quality gates automaticos
+### Pipeline de Coaching IA
+
+- **Cadeia de Fallback de 4 Niveis** — COPER > Hibrido > RAG > Base, garantindo que o sistema sempre produza conselhos uteis independente da maturidade do modelo
 - **Banco de Experiencias COPER** — Armazena e recupera experiencias de coaching passadas ponderadas por recencia, eficacia e similaridade de contexto
-- **Decaimento Temporal da Baseline** — Rastreia a evolucao das habilidades do jogador ao longo do tempo com pesos de decaimento exponencial
+- **Base de Conhecimento RAG** — Retrieval-Augmented Generation com padroes de referencia profissionais e conhecimento tatico
 - **Integracao Ollama** — LLM local opcional para refinamento em linguagem natural dos insights de coaching
+- **Atribuicao Causal** — Cada recomendacao de coaching inclui uma explicacao "por que" rastreavel a decisoes especificas de gameplay
+
+### Subsistemas de Redes Neurais
+
+- **RAP Coach** — Arquitetura de 7 camadas que combina percepcao, memoria (LTC-Hopfield), estrategia (Mixture-of-Experts com superposicao), pedagogia (value function), predicao de posicao, atribuicao causal e agregacao de output
+- **Encoder JEPA** — Joint-Embedding Predictive Architecture para pre-treinamento auto-supervisionado com loss contrastiva InfoNCE e target encoder EMA
+- **VL-JEPA** — Extensao Vision-Language com alinhamento de 16 conceitos taticos (posicionamento, utility, economia, engajamento, decisao, psicologia)
+- **AdvancedCoachNN** — Arquitetura LSTM + Mixture-of-Experts para predicao dos pesos de coaching
+- **Neural Role Head** — Classificador MLP de 5 funcoes (entry, support, lurk, AWP, anchor) com KL-divergence e consensus gating
+- **Modelos Bayesianos de Crenca** — Rastreamento do estado mental do adversario com calibracao adaptativa a partir dos dados da partida
+
+### Analise de Demos
+
+- **Parsing a Nivel de Tick** — Cada tick dos arquivos `.dem` e analisado via demoparser2, preservando todo o estado do jogo (nenhuma decimacao de tick)
+- **Rating HLTV 2.0** — Calculado por partida usando a formula oficial HLTV 2.0 (abates, mortes, ADR, KAST%, sobrevivencia, assist flash)
+- **Detalhamento Round por Round** — Timeline da economia, analise de engajamentos, uso de utilitarios, rastreamento de momentum
+- **Decaimento Temporal da Baseline** — Rastreia a evolucao das habilidades do jogador ao longo do tempo com pesos de decaimento exponencial
+
+### Analise baseada em Teoria dos Jogos
+
+- **Arvores Expectiminimax** — Avaliacao decisional game-theoretic para cenarios estrategicos
+- **Probabilidade de Morte Bayesiana** — Estima a probabilidade de sobrevivencia baseada em posicao, equipamento e estado do inimigo
+- **Indice de Engano** — Quantifica a imprevisibilidade posicional em relacao as baselines profissionais
+- **Analise do Raio de Engajamento** — Mapeia a selecao de armas contra as distribuicoes de distancia de engajamento
+- **Probabilidade de Vitoria** — Calculo da probabilidade de vitoria em tempo real
+- **Rastreamento de Momentum** — Trajetoria de confianca e desempenho round por round
+
+### Aplicacao Desktop
+
+- **Interface Kivy + KivyMD** — App desktop cross-platform com arquitetura MVVM
+- **Visualizador Tatico 2D** — Replay de demo em tempo real com posicoes dos jogadores, eventos de abate, indicadores de bomba e predicoes AI ghost
+- **Historico de Partidas** — Lista rolavel das partidas recentes com ratings codificados por cor
+- **Dashboard de Performance** — Tendencias de rating, estatisticas por mapa, analise de pontos fortes/fracos, detalhamento de utilitarios
+- **Chat com o Coach** — Conversa AI interativa com botoes de acao rapida e perguntas em texto livre
+- **Perfil do Jogador** — Integracao Steam com importacao automatica de partidas
+- **3 Temas Visuais** — CS2 (laranja), CS:GO (azul-cinza), CS 1.6 (verde) com wallpapers rotativos
+
+### Treinamento e Automacao
+
+- **Session Engine de 4 Daemons** — Scanner (descoberta de arquivos), Digester (processamento de demos), Teacher (treinamento de modelos), Pulse (monitoramento de saude)
+- **Gating de Maturidade em 3 Estagios** — CALIBRATING (0-49 demos, 0.5x confianca) > LEARNING (50-199, 0.8x) > MATURE (200+, total)
+- **Conviction Index** — Composto de 5 sinais que rastreia entropia de crencas, especializacao de gates, foco conceitual, precisao de valor e estabilidade de funcao
+- **Auto-Retreinamento** — O treinamento e acionado automaticamente com 10% de crescimento na contagem de demos
+- **Deteccao de Drift** — Monitoramento de drift de features baseado em Z-score com flag automatico de retreinamento
+- **Observatorio de Introspeccao do Coach** — Integracao TensorBoard com maquina de estados de maturidade, projetor de embeddings e rastreamento de conviccao
 
 ---
 
@@ -49,8 +112,8 @@ O sistema aprende com as melhores partidas profissionais ja jogadas e adapta seu
 ### 1. Clone
 
 ```bash
-git clone https://github.com/renanaugustomacena-ux/Macena_cs2_analyzer.git
-cd Macena_cs2_analyzer
+git clone https://github.com/renanaugustomacena-ux/Counter-Strike-coach-AI.git
+cd Counter-Strike-coach-AI
 ```
 
 ### 2. Setup Automatizado (Windows)
@@ -67,25 +130,53 @@ Cria um ambiente virtual, instala todas as dependencias, inicializa o banco de d
 .\venv_win\Scripts\pip.exe install --force-reinstall torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121
 ```
 
-### 3. Setup Manual
+### 3. Setup Manual (Windows)
 
-```bash
+```powershell
 python -m venv venv_win
-# Windows:
 .\venv_win\Scripts\activate
-# Linux:
-source venv_win/bin/activate
 
-pip install -r requirements.txt
-python -c "from backend.storage.database import init_db; init_db()"
-playwright install chromium
+# PyTorch (escolha UM):
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu       # Apenas CPU
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121     # GPU NVIDIA
+
+pip install -r Programma_CS2_RENAN/requirements.txt
+python -c "import sys; sys.path.append('.'); from Programma_CS2_RENAN.backend.storage.database import init_database; init_database()"
+pip install playwright && python -m playwright install chromium
 ```
 
-### 4. Execute
+### 4. Setup Manual (Linux)
+
+```bash
+sudo apt update
+sudo apt install -y python3.10 python3.10-venv python3.10-dev libsdl2-dev libglew-dev build-essential
+
+python3.10 -m venv venv_linux
+source venv_linux/bin/activate
+
+# PyTorch (escolha UM):
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cpu       # Apenas CPU
+pip install torch torchvision torchaudio --index-url https://download.pytorch.org/whl/cu121     # GPU NVIDIA
+
+pip install -r Programma_CS2_RENAN/requirements.txt
+pip install Kivy==2.3.0 KivyMD==1.2.0
+python -c "import sys; sys.path.append('.'); from Programma_CS2_RENAN.backend.storage.database import init_database; init_database()"
+pip install playwright && python -m playwright install chromium
+```
+
+### 5. Verificar Instalacao
+
+```bash
+python -c "import torch; print(f'PyTorch: {torch.__version__}')"
+python -c "import kivy; print(f'Kivy: {kivy.__version__}')"
+python -c "from Programma_CS2_RENAN.backend.nn.config import get_device; print(f'Device: {get_device()}')"
+```
+
+### 6. Executar
 
 ```bash
 # Aplicacao desktop (GUI Kivy)
-python Programma_CS2_RENAN/apps/desktop_app/main.py
+python Programma_CS2_RENAN/main.py
 
 # Console interativo (TUI live com paineis em tempo real)
 python console.py
@@ -98,50 +189,389 @@ python goliath.py
 
 ---
 
-## Visao Geral da Arquitetura
+## Panorama Arquitetural
 
-O sistema e organizado em 6 subsistemas de IA trabalhando como um pipeline unificado:
+### Pipeline OBSERVA > APRENDE > PENSA > FALA
 
-```
-OBSERVA (Ingestao)  -->  APRENDE (Treinamento)  -->  PENSA (Inferencia)  -->  FALA (Dialogo)
-    Daemon Hunter          Daemon Teacher               Pipeline COPER         Template + Ollama
-    Parsing de demo        Maturidade em 3 estagios     Conhecimento RAG       Atribuicao causal
-    Extracao de features   Treinamento multi-modelo      Teoria dos jogos       Comparacoes com pros
-```
-
-### Stack Tecnologico
-
-| Camada | Tecnologia |
-|--------|-----------|
-| Linguagem | Python 3.10+ |
-| UI | Kivy + KivyMD |
-| ML | PyTorch, ncps (LTC), redes Hopfield |
-| Banco de Dados | SQLite (modo WAL) |
-| Migracoes | Alembic |
-| Scraping | Playwright |
-| Observabilidade | TensorBoard, Sentry |
-
-### Estrutura do Projeto
+O sistema e organizado como uma pipeline de 4 estagios que transforma arquivos demo brutos em coaching personalizado:
 
 ```
-Programma_CS2_RENAN/
-  apps/desktop_app/     UI Kivy (padrao MVVM)
-  backend/
-    analysis/           Teoria dos jogos, modelos de crenca, momentum
-    data_sources/       Parser de demo, metadados HLTV
-    nn/                 Redes neurais (RAP Coach, JEPA, VL-JEPA)
-      rap_coach/        Modelo RAP de 6 camadas com memoria LTC-Hopfield
-    processing/         Feature engineering, heatmaps, validacao
-    knowledge/          Base de conhecimento RAG, banco de experiencias COPER
-    services/           Servico de coaching, integracao Ollama
-    storage/            Modelos DB, migracoes, backup
-  core/                 Asset manager, map manager, session engine
-  ingestion/            Localizador Steam, verificacoes de integridade
-  observability/        RASP, telemetria
-  reporting/            Visualizador, geradores de PDF
-docs/                   Guias do usuario (EN/IT/PT), estudos tecnicos
-tools/                  Suite de validacao, diagnosticos, ferramentas de auditoria
+OBSERVA (Ingestao)     APRENDE (Treinamento)   PENSA (Inferencia)      FALA (Dialogo)
+  Daemon Scanner         Daemon Teacher          Pipeline COPER          Template + Ollama
+  Parsing de demo        Maturidade em 3 est.    Conhecimento RAG        Atribuicao causal
+  Extracao de features   Treinamento multi-mod.  Teoria dos jogos        Comparacoes com pros
+  Armazenamento de tick  Deteccao de drift       Modelagem de crencas    Scoring de gravidade
 ```
+
+**OBSERVA** — O daemon Scanner monitora continuamente as pastas de demo configuradas em busca de novos arquivos `.dem`. Quando encontrados, o daemon Digester analisa cada tick usando demoparser2, extrai o vetor canonico de features de 25 dimensoes, calcula os ratings HLTV 2.0 e armazena tudo em bancos de dados SQLite por partida.
+
+**APRENDE** — O daemon Teacher treina automaticamente os modelos neurais quando dados suficientes se acumulam. O treinamento progride atraves de 3 estagios de maturidade (CALIBRATING > LEARNING > MATURE). Multiplas arquiteturas treinam em paralelo: JEPA para aprendizado auto-supervisionado de representacoes, RAP Coach para modelagem de decisoes taticas, NeuralRoleHead para classificacao de funcao dos jogadores.
+
+**PENSA** — No tempo de inferencia, a pipeline COPER combina previsoes neurais com experiencias de coaching recuperadas, conhecimento RAG e analise de teoria dos jogos. Uma cadeia de fallback de 4 niveis (COPER > Hibrido > RAG > Base) garante que conselhos estejam sempre disponiveis independente da maturidade do modelo.
+
+**FALA** — O output final de coaching e formatado com niveis de gravidade, atribuicao causal ("por que este conselho") e opcionalmente refinado atraves de um LLM local Ollama para qualidade de linguagem natural.
+
+### Session Engine de 4 Daemons
+
+| Daemon | Funcao | Trigger |
+|--------|--------|---------|
+| **Scanner (Hunter)** | Descobre novos arquivos `.dem` nas pastas configuradas | Scan periodico ou file watcher |
+| **Digester** | Analisa demos, extrai features, calcula ratings | Novo arquivo detectado pelo Scanner |
+| **Teacher** | Treina os modelos neurais com os dados acumulados | Limiar de crescimento de 10% na contagem de demos |
+| **Pulse** | Monitoramento de saude, deteccao de drift, status do sistema | Continuo em background |
+
+### Pipeline de Coaching COPER
+
+COPER (Coaching via Organized Pattern Experience Retrieval) e o motor de coaching principal. Opera uma cadeia de fallback de 4 niveis:
+
+1. **Modo COPER** — Pipeline completa: recuperacao do Experience Bank + conhecimento RAG + previsoes do modelo neural + comparacoes profissionais. Requer modelos treinados.
+2. **Modo Hibrido** — Combina previsoes neurais com conselhos baseados em templates quando alguns modelos ainda estao em calibracao.
+3. **Modo RAG** — Recuperacao pura: busca padroes de coaching relevantes na knowledge base sem inferencia neural. Funciona apenas com demos ingeridas.
+4. **Modo Base** — Conselhos baseados em templates a partir de analise estatistica (desvios media/std das baselines profissionais). Funciona imediatamente.
+
+### Arquiteturas de Redes Neurais
+
+**RAP Coach (Arquitetura de 7 Camadas)**
+
+O RAP (Reasoning, Attribution, Prediction) Coach e o modelo neural principal. Suas 7 camadas processam os dados de gameplay atraves de uma pipeline cognitiva:
+
+| Camada | Funcao | Detalhes |
+|--------|--------|----------|
+| 1. Percepcao | Codificacao visual + espacial | Camadas conv para view frame (64d), estado do mapa (32d), diff de movimento (32d) → 128d |
+| 2. Memoria | Rastreamento recorrente de crencas | LSTM + rede Hopfield para memoria associativa. Input: 153d (128 percepcao + 25 metadados) → 256d estado oculto |
+| 3. Estrategia | Otimizacao decisional | Mixture-of-Experts com superposicao para decisoes context-dependent. 10 pesos de acao |
+| 4. Pedagogia | Estimativa de valor | Avaliacao V-function com integracao de skill vector |
+| 5. Posicao | Posicionamento otimo | Prediz (dx, dy, dz) delta para a posicao otima (escala: 500 unidades mundo) |
+| 6. Atribuicao | Diagnostico causal | Atribuicao de 5 dimensoes que explica os drivers das decisoes |
+| 7. Output | Agregacao | advice_probs, belief_state, value_estimate, gate_weights, optimal_pos, attribution |
+
+**JEPA (Joint-Embedding Predictive Architecture)**
+
+Pre-treinamento auto-supervisionado com:
+- Context encoder + predictor → prediz embedding target
+- Target encoder atualizado via EMA (momentum 0.996)
+- Loss contrastiva InfoNCE com negativos in-batch
+- Dimensao latente: 128
+
+**VL-JEPA (Extensao Vision-Language)**
+
+Estende o JEPA com alinhamento de 16 conceitos taticos:
+- Conceitos: posicionamento (3), utility (2), economia (2), engajamento (4), decisao (2), psicologia (3)
+- Loss de alinhamento conceitual + regularizacao de diversidade
+- Etiquetagem baseada em outcome dos RoundStats (abates, mortes, equipamento, resultado do round)
+
+**Outros Modelos:**
+- **AdvancedCoachNN** — LSTM (hidden=128) + Mixture-of-Experts (4 especialistas, top-k=2) para predicao dos pesos de coaching
+- **NeuralRoleHead** — Classificador MLP de 5 funcoes com KL-divergence gating e consensus voting
+- **RoleClassifier** — Deteccao leve de funcoes a partir das features dos ticks
+
+### Vetor de Features de 25 Dimensoes
+
+Cada tick de jogo e representado como um vetor canonico de 25 dimensoes (`METADATA_DIM=25`):
+
+| Indice | Feature | Range | Descricao |
+|--------|---------|-------|-----------|
+| 0 | health | [0, 1] | HP / 100 |
+| 1 | armor | [0, 1] | Armadura / 100 |
+| 2 | has_helmet | {0, 1} | Capacete equipado |
+| 3 | has_defuser | {0, 1} | Kit de desarme |
+| 4 | equipment_value | [0, 1] | Custo do equipamento normalizado |
+| 5 | is_crouching | {0, 1} | Posicao agachada |
+| 6 | is_scoped | {0, 1} | Arma com scope ativa |
+| 7 | is_blinded | {0, 1} | Efeito de flash |
+| 8 | enemies_visible | [0, 1] | Contagem de inimigos visiveis (normalizada) |
+| 9-11 | pos_x, pos_y, pos_z | [-1, 1] | Coordenadas mundo (normalizadas por mapa) |
+| 12-13 | view_yaw_sin, view_yaw_cos | [-1, 1] | Angulo de visao (codificacao ciclica) |
+| 14 | view_pitch | [-1, 1] | Angulo de visao vertical |
+| 15 | z_penalty | [0, 1] | Distintividade vertical (mapas multi-nivel) |
+| 16 | kast_estimate | [0, 1] | Razao Kill/Assist/Survive/Trade |
+| 17 | map_id | [0, 1] | Hash deterministico do mapa (baseado em MD5) |
+| 18 | round_phase | {0, .33, .66, 1} | Pistol / Eco / Force / Full buy |
+| 19 | weapon_class | [0, 1] | Faca=0, Pistola=.2, SMG=.4, Rifle=.6, Sniper=.8, Pesada=1 |
+| 20 | time_in_round | [0, 1] | Segundos / 115 |
+| 21 | bomb_planted | {0, 1} | Flag bomba plantada |
+| 22 | teammates_alive | [0, 1] | Contagem / 4 |
+| 23 | enemies_alive | [0, 1] | Contagem / 5 |
+| 24 | team_economy | [0, 1] | Dinheiro medio do time / 16000 |
+
+### Gating de Maturidade em 3 Estagios
+
+Os modelos progridem atraves de gates de maturidade baseados na contagem de demos ingeridas:
+
+| Estagio | Contagem de Demos | Confianca | Comportamento |
+|---------|-------------------|-----------|---------------|
+| **CALIBRATING** | 0-49 | 0.5x | Coaching basico, conselhos marcados como provisorios |
+| **LEARNING** | 50-199 | 0.8x | Intermediario, confiabilidade crescente |
+| **MATURE** | 200+ | 1.0x | Confianca total, todos os subsistemas contribuem |
+
+Um **Conviction Index** paralelo (0.0-1.0) rastreia 5 sinais neurais: entropia de crencas, especializacao de gates, foco conceitual, precisao de valor e estabilidade de funcao. Estados: DOUBT (<0.30) > LEARNING (0.30-0.60) > CONVICTION (>0.60 estavel por 10+ epocas) > MATURE (>0.75 estavel por 20+ epocas). Uma queda brusca >20% ativa o estado CRISIS.
+
+---
+
+## Mapas Suportados
+
+O sistema suporta todos os 9 mapas competitivos Active Duty com mapeamento de coordenadas com precisao de pixel:
+
+| Mapa | Tipo | Calibracao |
+|------|------|------------|
+| de_mirage | Nivel unico | pos (-3230, 1713), escala 5.0 |
+| de_inferno | Nivel unico | pos (-2087, 3870), escala 4.9 |
+| de_dust2 | Nivel unico | pos (-2476, 3239), escala 4.4 |
+| de_overpass | Nivel unico | pos (-4831, 1781), escala 5.2 |
+| de_ancient | Nivel unico | pos (-2953, 2164), escala 5.0 |
+| de_anubis | Nivel unico | pos (-2796, 3328), escala 5.22 |
+| de_train | Nivel unico | pos (-2477, 2392), escala 4.7 |
+| de_nuke | **Multi-nivel** | pos (-3453, 2887), escala 7.0, Z-cutoff -495 |
+| de_vertigo | **Multi-nivel** | pos (-3168, 1762), escala 4.0, Z-cutoff 11700 |
+
+Os mapas multi-nivel (Nuke, Vertigo) usam cutoff no eixo Z para separar nivel superior e inferior para uma renderizacao 2D precisa. A feature z_penalty (indice 15) no vetor de features captura a distintividade vertical para estes mapas.
+
+---
+
+## Stack Tecnologico
+
+### Dependencias Principais
+
+| Categoria | Pacote | Versao | Proposito |
+|-----------|--------|--------|-----------|
+| **ML Framework** | PyTorch | Latest | Treinamento e inferencia de redes neurais |
+| **Redes Recorrentes** | ncps | Latest | Redes Liquid Time-Constant (LTC) |
+| **Memoria Associativa** | hopfield-layers | Latest | Camadas de rede Hopfield para memoria |
+| **Parsing de Demo** | demoparser2 | 0.40.2 | Parsing a nivel de tick dos arquivos demo CS2 |
+| **Utilitarios CS2** | awpy | 1.2.3 | Utilitarios de analise CS2 |
+| **Framework UI** | Kivy | 2.3.0 | GUI desktop cross-platform |
+| **Componentes UI** | KivyMD | 1.2.0 | Widgets Material Design |
+| **ORM Database** | SQLAlchemy + SQLModel | Latest | Modelos e queries de banco de dados |
+| **Migracoes** | Alembic | Latest | Migracoes de schema de banco de dados |
+| **Web Scraping** | Playwright | 1.57.0 | Navegador headless para HLTV |
+| **Cliente HTTP** | HTTPX | 0.28.1 | Requisicoes HTTP async |
+| **Data Science** | NumPy, Pandas, SciPy, scikit-learn | Latest | Computacao numerica e analise |
+| **Visualizacao** | Matplotlib | Latest | Geracao de graficos |
+| **Geometria** | Shapely | 2.1.2 | Analise espacial |
+| **Grafos** | NetworkX | Latest | Analise baseada em grafos |
+| **Seguranca** | cryptography | 46.0.3 | Criptografia de credenciais |
+| **TUI** | Rich | 14.2.0 | UI de terminal para modo console |
+| **API** | FastAPI + Uvicorn | 0.40.0 | Servidor de API interno |
+| **Validacao** | Pydantic | Latest | Validacao de dados e configuracoes |
+| **Testes** | pytest + pytest-cov + pytest-mock | 9.0.2 | Framework de testes e cobertura |
+| **Packaging** | PyInstaller | 6.17.0 | Distribuicao binaria |
+| **Templating** | Jinja2 | 3.1.6 | Renderizacao de templates para relatorios |
+| **Parsing HTML** | BeautifulSoup4 + lxml | 4.12.3 | Extracao de conteudo web |
+| **Config** | PyYAML | 6.0.3 | Arquivos de configuracao YAML |
+| **Imagens** | Pillow | 12.0.0 | Processamento de imagens |
+| **Keyring** | keyring | 25.6.0 | Armazenamento seguro de credenciais |
+
+### Dependencias Apenas Windows
+
+| Pacote | Versao | Proposito |
+|--------|--------|-----------|
+| kivy-deps.glew | 0.3.1 | OpenGL extension wrangler |
+| kivy-deps.sdl2 | 0.7.0 | Biblioteca multimidia SDL2 |
+| kivy-deps.angle | 0.4.0 | Backend ANGLE OpenGL ES |
+
+---
+
+## Estrutura do Projeto
+
+```
+Counter-Strike-coach-AI/
+|
++-- Programma_CS2_RENAN/                Pacote principal da aplicacao
+|   +-- apps/desktop_app/               GUI Kivy (padrao MVVM)
+|   |   +-- main.py                     Ponto de entrada da app
+|   |   +-- layout.kv                   Definicao de layout Kivy
+|   |   +-- viewmodels/                 Camada ViewModel (playback, ghost, chronovisor)
+|   |   +-- screens/                    Telas UI (tactical viewer, match history, performance,
+|   |   |                               match detail, wizard, help, coach, settings, profile)
+|   |   +-- widgets/                    Componentes UI reutilizaveis (tactical map, player sidebar,
+|   |   |                               timeline scrubber, ghost pixel renderer)
+|   |   +-- assets/                     Temas (CS2, CSGO, CS1.6), fontes, imagens de radar dos mapas
+|   |   +-- i18n/                       Traducoes (EN, IT, PT)
+|   |
+|   +-- backend/
+|   |   +-- analysis/                   Teoria dos jogos e analise estatistica
+|   |   |   +-- belief_model.py         Rastreamento bayesiano do estado mental do adversario
+|   |   |   +-- game_tree.py            Arvores decisionais expectiminimax
+|   |   |   +-- momentum.py             Momentum dos rounds e tendencias de confianca
+|   |   |   +-- role_classifier.py      Deteccao de funcao do jogador (entry, support, lurk, AWP, anchor)
+|   |   |   +-- blind_spots.py          Consciencia do mapa e fraquezas posicionais
+|   |   |   +-- deception_index.py      Metrica de imprevisibilidade posicional
+|   |   |   +-- entropy_analysis.py     Quantificacao da aleatoriedade decisional
+|   |   |   +-- engagement_range.py     Analise de distribuicao arma-distancia
+|   |   |   +-- utility_economy.py      Eficiencia de gasto de granadas
+|   |   |   +-- win_probability.py      Calculo de probabilidade de vitoria em tempo real
+|   |   |
+|   |   +-- data_sources/              Integracao de dados externos
+|   |   |   +-- demo_parser.py          Wrapper demoparser2 (extracao a nivel de tick)
+|   |   |   +-- hltv_api_service.py     Scraping de metadados profissionais HLTV
+|   |   |   +-- steam_api_service.py    Perfil Steam e dados de partidas
+|   |   |   +-- faceit_api_service.py   Integracao de dados de partidas FaceIT
+|   |   |
+|   |   +-- nn/                         Subsistemas de redes neurais
+|   |   |   +-- config.py               Configuracao global NN (dimensoes, lr, batch size, device)
+|   |   |   +-- jepa_model.py           Encoder JEPA + VL-JEPA + ConceptLabeler
+|   |   |   +-- jepa_trainer.py         Loop de treinamento JEPA com monitoramento de drift
+|   |   |   +-- training_orchestrator.py Orquestracao de treinamento multi-modelo
+|   |   |   +-- rap_coach/              Modelo RAP Coach
+|   |   |   |   +-- model.py            Arquitetura de 7 camadas (Percepcao-Memoria-Estrategia-
+|   |   |   |   |                       Pedagogia-Posicao-Atribuicao-Output)
+|   |   |   |   +-- trainer.py          Loop de treinamento especifico do RAP
+|   |   |   |   +-- memory.py           Modulo de memoria LTC + Hopfield
+|   |   |   +-- layers/                 Componentes neurais compartilhados
+|   |   |       +-- superposition.py    Camada de superposicao context-dependent
+|   |   |       +-- moe.py             Gating Mixture-of-Experts
+|   |   |
+|   |   +-- processing/                Feature engineering e processamento de dados
+|   |   |   +-- feature_engineering/
+|   |   |   |   +-- vectorizer.py       Extracao de features canonicas de 25-dim (METADATA_DIM=25)
+|   |   |   |   +-- tensor_factory.py   Construcao de tensores view/map para RAP Coach
+|   |   |   +-- heatmap/               Geracao de heatmaps espaciais
+|   |   |   +-- validation/            Deteccao de drift, verificacoes de qualidade de dados
+|   |   |
+|   |   +-- knowledge/                 Gestao do conhecimento
+|   |   |   +-- rag_knowledge.py        Recuperacao RAG para padroes de coaching
+|   |   |   +-- experience_bank.py      Armazenamento e recuperacao de experiencias COPER
+|   |   |   +-- round_utils.py          Utilitario de deteccao de fase do round
+|   |   |
+|   |   +-- services/                  Servicos da aplicacao
+|   |   |   +-- coaching_service.py     Pipeline de coaching de 4 niveis (COPER/Hibrido/RAG/Base)
+|   |   |   +-- ollama_service.py       Integracao LLM local para refinamento de linguagem
+|   |   |
+|   |   +-- storage/                   Camada de banco de dados
+|   |       +-- database.py            Gestao de conexoes SQLite WAL-mode
+|   |       +-- models.py              Definicoes ORM SQLAlchemy/SQLModel
+|   |       +-- backup.py              Backup automatizado de banco de dados
+|   |       +-- match_data_manager.py  Gestao de banco de dados SQLite por partida
+|   |
+|   +-- core/                          Servicos core da aplicacao
+|   |   +-- session_engine.py           Engine de 4 daemons (Scanner, Digester, Teacher, Pulse)
+|   |   +-- map_manager.py             Carregamento de mapas, calibracao de coordenadas, Z-cutoff
+|   |   +-- asset_manager.py           Resolucao de temas e assets
+|   |   +-- spatial_data.py            Sistemas de coordenadas espaciais
+|   |
+|   +-- ingestion/                     Pipeline de ingestao de demos
+|   |   +-- steam_locator.py           Auto-descoberta dos caminhos de demo do Steam CS2
+|   |   +-- integrity_check.py         Validacao de arquivos demo
+|   |
+|   +-- observability/                 Monitoramento e seguranca
+|   |   +-- rasp.py                    Runtime Application Self-Protection
+|   |   +-- telemetry.py              Metricas TensorBoard e rastreamento de conviccao
+|   |   +-- logger_setup.py           Logging estruturado (namespace cs2analyzer.*)
+|   |
+|   +-- reporting/                     Geracao de output
+|   |   +-- visualizer.py             Renderizacao de graficos e diagramas
+|   |   +-- pdf_generator.py          Geracao de relatorios PDF
+|   |
+|   +-- tests/                         Suite de testes (390+ testes)
+|   +-- data/                          Dados estaticos (seed knowledge base, datasets externos)
+|
++-- docs/                              Documentacao
+|   +-- USER_GUIDE.md                  Guia do usuario completo (EN)
+|   +-- USER_GUIDE_IT.md               Guia do usuario (Italiano)
+|   +-- USER_GUIDE_PT.md               Guia do usuario (Portugues)
+|   +-- AI-cs2-coach-part1.md          Documentacao da arquitetura (Parte 1)
+|   +-- AI-cs2-coach-part2.md          Documentacao da arquitetura (Parte 2)
+|   +-- AI-cs2-coach-part3.md          Documentacao da arquitetura (Parte 3)
+|   +-- cybersecurity.md               Analise de seguranca
+|   +-- Studies/                        17 papers de pesquisa sobre:
+|       +-- Studio_01                   Fundamentos Epistemicos
+|       +-- Studio_02                   Algebra da Ingestao
+|       +-- Studio_03                   Redes Recorrentes
+|       +-- Studio_04                   Aprendizado por Reforco
+|       +-- Studio_05                   Arquitetura Perceptiva
+|       +-- Studio_06                   Arquitetura Cognitiva
+|       +-- Studio_07                   Arquitetura JEPA
+|       +-- Studio_08                   Engenharia Forense
+|       +-- Studio_09                   Feature Engineering
+|       +-- Studio_10                   Database e Storage
+|       +-- Studio_11                   Motor Tri-Daemon
+|       +-- Studio_12                   Avaliacao e Falsificacao
+|       +-- Studio_13                   Explicabilidade e Interface de Coaching
+|       +-- Studio_14                   Etica, Privacidade e Integridade
+|       +-- Studio_15                   Otimizacao de Hardware e Scaling
+|       +-- Studio_16                   Mapas e GNN
+|       +-- Studio_17                   Impacto Sociotecnico e Futuro
+|
++-- tools/                             Ferramentas de validacao e diagnostico
+|   +-- headless_validator.py          Gate de regressao primario (245+ checks)
+|   +-- Feature_Audit.py              Auditoria de feature engineering
+|   +-- portability_test.py           Verificacao de portabilidade cross-platform
+|   +-- dead_code_detector.py         Deteccao de codigo nao utilizado
+|   +-- dev_health.py                 Saude do ambiente de desenvolvimento
+|   +-- verify_all_safe.py            Verificacao de seguranca
+|   +-- db_health_diagnostic.py       Diagnostico de saude do banco de dados
+|   +-- generate_manifest.py          Gerador de manifesto de integridade
+|   +-- Sanitize_Project.py           Preparacao para distribuicao
+|   +-- build_pipeline.py             Orquestracao da pipeline de build
+|
++-- tests/                            Testes de integracao e verificacao
+|   +-- forensics/                    Utilitarios de debug e forenses
+|
++-- scripts/                          Scripts de setup e deployment
+|   +-- Setup_Macena_CS2.ps1          Setup automatizado Windows
+|
++-- alembic/                          Scripts de migracao de banco de dados
++-- console.py                        Ponto de entrada da TUI interativa
++-- goliath.py                        Orquestrador CLI de producao
++-- run_full_training_cycle.py        Runner standalone de ciclo de treinamento
+```
+
+---
+
+## Pontos de Entrada
+
+A aplicacao fornece 4 pontos de entrada para diferentes casos de uso:
+
+### Aplicacao Desktop (GUI)
+
+```bash
+python Programma_CS2_RENAN/main.py
+```
+
+Interface grafica completa com visualizador tatico, historico de partidas, dashboard de performance, chat com o coach e configuracoes. Abre em 1280x720. Na primeira execucao, um assistente de 3 passos configura o diretorio Brain Data Root.
+
+### Console Interativo (TUI)
+
+```bash
+python console.py
+```
+
+UI de terminal com paineis em tempo real para desenvolvimento e controle de runtime. Comandos organizados por subsistema:
+
+| Grupo de Comandos | Exemplos |
+|-------------------|----------|
+| **Pipeline ML** | `ml start`, `ml stop`, `ml pause`, `ml resume`, `ml throttle 0.5`, `ml status` |
+| **Ingestao** | `ingest start`, `ingest stop`, `ingest mode continuous 5`, `ingest scan` |
+| **Build & Test** | `build run`, `build verify`, `test all`, `test headless`, `test hospital` |
+| **Sistema** | `sys status`, `sys audit`, `sys baseline`, `sys db`, `sys vacuum`, `sys resources` |
+| **Config** | `set steam /path`, `set faceit KEY`, `set config key value` |
+| **Servicos** | `svc restart coaching` |
+
+### CLI de Producao (Goliath)
+
+```bash
+python goliath.py <comando>
+```
+
+Orquestrador master para builds de producao, release e diagnostico:
+
+| Comando | Descricao | Flags |
+|---------|-----------|-------|
+| `build` | Pipeline de build industrial | `--test-only` |
+| `sanitize` | Limpar o projeto para distribuicao | `--force` |
+| `integrity` | Gerar manifesto de integridade | |
+| `audit` | Verificar dados e features | `--demo <path>` |
+| `db` | Gestao de schema do banco de dados | `--force` |
+| `doctor` | Diagnostico clinico | `--department <name>` |
+| `baseline` | Status de decaimento da baseline temporal | |
+
+### Runner de Ciclo de Treinamento
+
+```bash
+python run_full_training_cycle.py
+```
+
+Script standalone que executa um ciclo de treinamento completo fora do daemon engine. Util para treinamento manual ou debugging.
 
 ---
 
@@ -149,28 +579,207 @@ tools/                  Suite de validacao, diagnosticos, ferramentas de auditor
 
 O projeto mantem uma hierarquia de validacao em multiplos niveis:
 
-| Ferramenta | Escopo | Comando |
-|------------|--------|---------|
-| Headless Validator | Gate de regressao (79 checks) | `python tools/headless_validator.py` |
-| Suite Pytest | Testes logicos (390+ testes) | `python -m pytest tests/ -x -q` |
-| Backend Validator | Saude do build (40 checks) | `python tools/backend_validator.py` |
-| Goliath Hospital | Diagnostico completo | `python tools/Goliath_Hospital.py` |
+| Ferramenta | Escopo | Comando | Checks |
+|------------|--------|---------|--------|
+| Headless Validator | Gate de regressao primario | `python tools/headless_validator.py` | 245+ checks |
+| Suite Pytest | Testes logicos e integracao | `python -m pytest Programma_CS2_RENAN/tests/ -x -q` | 390+ testes |
+| Feature Audit | Integridade de feature engineering | `python tools/Feature_Audit.py` | Dimensoes do vetor, ranges |
+| Portability Test | Compatibilidade cross-platform | `python tools/portability_test.py` | Checks de importacao, caminhos |
+| Dev Health | Ambiente de desenvolvimento | `python tools/dev_health.py` | Dependencias, config |
+| Dead Code Detector | Scan de codigo nao utilizado | `python tools/dead_code_detector.py` | Analise de importacoes |
+| Safety Verifier | Checks de seguranca | `python tools/verify_all_safe.py` | RASP, scan de secrets |
+| DB Health | Diagnostico de banco de dados | `python tools/db_health_diagnostic.py` | Schema, modo WAL, integridade |
+| Goliath Hospital | Diagnostico completo | `python goliath.py doctor` | Saude completa do sistema |
+
+**Gate CI/CD:** O headless validator deve retornar exit code 0 antes que qualquer commit seja considerado valido. Os pre-commit hooks aplicam padroes de qualidade de codigo.
+
+---
+
+## Suporte Multi-Idioma
+
+A aplicacao suporta 3 idiomas em toda a interface do usuario:
+
+| Idioma | UI | Guia do Usuario | README |
+|--------|----|-----------------|--------|
+| English | Completa | [docs/USER_GUIDE.md](docs/USER_GUIDE.md) | [README.md](README.md) |
+| Italiano | Completa | [docs/USER_GUIDE_IT.md](docs/USER_GUIDE_IT.md) | [README_IT.md](README_IT.md) |
+| Portugues | Completa | [docs/USER_GUIDE_PT.md](docs/USER_GUIDE_PT.md) | [README_PT.md](README_PT.md) |
+
+O idioma pode ser alterado em runtime a partir das Configuracoes sem reiniciar a aplicacao.
+
+---
+
+## Recursos de Seguranca
+
+### Runtime Application Self-Protection (RASP)
+
+- **Manifesto de Integridade** — Hashes SHA-256 de todos os arquivos fonte criticos, verificados na inicializacao
+- **Deteccao de Adulteracao** — Avisa quando arquivos fonte foram modificados desde a ultima geracao do manifesto
+- **Validacao de Binarios Congelados** — Verifica a estrutura do bundle PyInstaller e o ambiente de execucao
+- **Deteccao de Localizacao Suspeita** — Avisa quando executado a partir de caminhos inesperados do filesystem
+
+### Seguranca de Credenciais
+
+- **Integracao OS Keyring** — API keys (Steam, FaceIT) armazenadas no Windows Credential Manager / keyring Linux, nunca em texto simples
+- **Nenhum Secret Hardcoded** — O arquivo de configuracoes mostra o placeholder `"PROTECTED_BY_WINDOWS_VAULT"`
+- **Operacoes Criptograficas** — Usa `cryptography==46.0.3` (biblioteca verificada, nenhuma crypto personalizada)
+
+### Seguranca de Banco de Dados
+
+- **SQLite WAL Mode** — Write-Ahead Logging para acesso concorrente seguro em todos os bancos de dados
+- **Validacao de Input** — Modelos Pydantic na fronteira de ingestao, queries SQL parametrizadas
+- **Sistema de Backup** — Backups automatizados do banco de dados com verificacao de integridade
+
+### Logging Estruturado
+
+- Todo o logging atraves do namespace `get_logger("cs2analyzer.<modulo>")`
+- Nenhum PII no output de logs
+- Formato estruturado para integracao de observabilidade
+
+---
+
+## Maturidade do Sistema
+
+Nem todos os subsistemas sao igualmente maduros. O modo de coaching padrao (COPER) e production-ready e **nao** depende dos modelos neurais. O coaching neural melhora conforme mais demos sao processadas.
+
+| Subsistema | Status | Pontuacao | Notas |
+|------------|--------|-----------|-------|
+| Coaching COPER | OPERACIONAL | 8/10 | Experience bank + RAG + referencias pro. Funciona imediatamente. |
+| Motor Analitico | OPERACIONAL | 6/10 | Rating HLTV 2.0, breakdown por round, timeline de economia. |
+| JEPA Base (InfoNCE) | OPERACIONAL | 7/10 | Pre-treinamento auto-supervisionado, target encoder EMA. |
+| Neural Role Head | OPERACIONAL | 7/10 | MLP de 5 funcoes com KL-divergence, consensus gating. |
+| RAP Coach (7 camadas) | LIMITADO | 3/10 | Arquitetura completa (LTC+Hopfield), necessita 200+ demos. |
+| VL-JEPA (16 conceitos) | LIMITADO | 2/10 | Alinhamento conceitual implementado, qualidade das etiquetas em melhoria. |
+
+**Niveis de maturidade:**
+- **CALIBRATING** (0-49 demos): 0.5x confianca, coaching fortemente integrado por COPER
+- **LEARNING** (50-199 demos): 0.8x confianca, features neurais gradualmente ativadas
+- **MATURE** (200+ demos): Confianca total, todos os subsistemas contribuem
 
 ---
 
 ## Documentacao
 
+### Guias do Usuario
+
 | Documento | Descricao |
 |-----------|-----------|
-| [Guia do Usuario](docs/USER_GUIDE_PT.md) | Guia completo de instalacao e uso |
-| [User Guide (EN)](docs/USER_GUIDE.md) | Complete installation and usage guide |
+| [Guia do Usuario (PT)](docs/USER_GUIDE_PT.md) | Guia completo de instalacao, setup wizard, API keys, todas as telas, aquisicao de demos, troubleshooting |
+| [User Guide (EN)](docs/USER_GUIDE.md) | Complete installation, setup wizard, API keys, all screens, demo acquisition, troubleshooting |
 | [Guida Utente (IT)](docs/USER_GUIDE_IT.md) | Guida completa installazione e utilizzo |
-| [Arquitetura do Projeto](docs/Progetto-Renan-Cs2-AI-Coach.md) | Arquitetura completa do sistema (Italiano) |
-| [Estudos Tecnicos](docs/Studies/) | 17 papers de pesquisa aprofundados |
-| [Analise JEPA](jepa.md) | Analise aprofundada da arquitetura JEPA |
-| [Arquitetura do Console](CONSOLE_ARCHITECTURE.md) | Design do console de controle |
-| [Relatorio de Auditoria](MASTER_AUDIT_REPORT.md) | Auditoria final: 59 encontrados, 56 resolvidos |
-| [Changelog](CHANGELOG.md) | Historico de versoes |
+
+### Documentacao Arquitetural
+
+| Documento | Descricao |
+|-----------|-----------|
+| [Arquitetura Parte 1](docs/AI-cs2-coach-part1.md) | Design do sistema e arquitetura core |
+| [Arquitetura Parte 2](docs/AI-cs2-coach-part2.md) | Subsistemas de redes neurais |
+| [Arquitetura Parte 3](docs/AI-cs2-coach-part3.md) | Pipeline de coaching e gestao do conhecimento |
+| [Analise de Cybersecurity](docs/cybersecurity.md) | Postura de seguranca e modelo de ameacas |
+
+### Papers de Pesquisa (17 Estudos)
+
+A pasta `docs/Studies/` contem 17 papers de pesquisa aprofundados que cobrem os fundamentos teoricos e as decisoes de engenharia por tras de cada subsistema:
+
+| # | Estudo | Tema |
+|---|--------|------|
+| 01 | Fundamentos Epistemicos | Framework de representacao e raciocinio do conhecimento |
+| 02 | Algebra da Ingestao | Modelo matematico do processamento de dados de demo |
+| 03 | Redes Recorrentes | Teoria das redes LTC e Hopfield |
+| 04 | Aprendizado por Reforco | Fundamentos de RL para decisoes de coaching |
+| 05 | Arquitetura Perceptiva | Design da pipeline de processamento visual |
+| 06 | Arquitetura Cognitiva | Modelagem de crencas e sistemas decisionais |
+| 07 | Arquitetura JEPA | Teoria da Joint-Embedding Predictive Architecture |
+| 08 | Engenharia Forense | Metodologia de debug e diagnostico |
+| 09 | Feature Engineering | Design e validacao do vetor de 25 dimensoes |
+| 10 | Database e Storage | SQLite WAL, DB por partida, estrategia de migracao |
+| 11 | Motor Tri-Daemon | Arquitetura multi-daemon e ciclo de vida |
+| 12 | Avaliacao e Falsificacao | Metodologia de teste e validacao |
+| 13 | Explicabilidade e Coaching | Atribuicao causal e design de interface do usuario |
+| 14 | Etica, Privacidade e Integridade | Protecao de dados e consideracoes eticas sobre IA |
+| 15 | Hardware e Scaling | Otimizacao para varias configuracoes de hardware |
+| 16 | Mapas e GNN | Analise espacial e abordagens com redes neurais em grafos |
+| 17 | Impacto Sociotecnico | Direcoes futuras e implicacoes sociais |
+
+---
+
+## Alimentando o Coach
+
+O coach de IA vem sem nenhum conhecimento pre-treinado. Ele aprende exclusivamente a partir de arquivos demo profissionais de CS2. A qualidade do coaching e diretamente proporcional a qualidade e quantidade das demos ingeridas.
+
+### Limiares de Contagem de Demos
+
+| Demos Pro | Nivel | Confianca | O que Acontece |
+|-----------|-------|-----------|----------------|
+| 0-9 | Nao pronto | 0% | Minimo de 10 demos pro necessarias para o primeiro ciclo de treinamento |
+| 10-49 | CALIBRATING | 50% | Coaching basico ativo, conselhos marcados como provisorios |
+| 50-199 | LEARNING | 80% | Confiabilidade crescente, cada vez mais personalizado |
+| 200+ | MATURE | 100% | Confianca total, maxima precisao |
+
+### Onde Encontrar Demos Pro
+
+1. Va ate [hltv.org](https://www.hltv.org) > Results
+2. Filtre por eventos top-tier: Major Championship, IEM Katowice/Cologne, BLAST Premier, ESL Pro League, PGL Major
+3. Selecione partidas de times no top-20 (Navi, FaZe, Vitality, G2, Spirit, Heroic)
+4. Prefira series BO3/BO5 para maximizar os dados de treinamento por download
+5. Diversifique em todos os mapas Active Duty — uma distribuicao desbalanceada cria um coach desbalanceado
+6. Baixe o link "GOTV Demo" ou "Watch Demo"
+
+### Planejamento de Armazenamento
+
+Os arquivos `.dem` sao tipicamente de 300-850 MB cada. Planeje seu armazenamento de acordo:
+
+| Demos | Arquivos Raw | DBs de Partida | Total |
+|-------|-------------|----------------|-------|
+| 10 | ~5 GB | ~1 GB | ~6 GB |
+| 50 | ~30 GB | ~5 GB | ~35 GB |
+| 100 | ~60 GB | ~10 GB | ~70 GB |
+| 200 | ~120 GB | ~20 GB | ~140 GB |
+
+Tres locais de armazenamento separados:
+
+| Local | Conteudo | Recomendacao |
+|-------|----------|-------------|
+| Core Database | Estatisticas do jogador, estado do coaching, metadados HLTV | Permanece na pasta do programa |
+| Brain Data Root | Pesos dos modelos de IA, logs, knowledge base | SSD recomendado |
+| Pro Demo Folder | Arquivos .dem raw + bancos de dados SQLite por partida | O maior, HDD aceitavel |
+
+### Monitoramento TensorBoard
+
+```bash
+tensorboard --logdir runs/coach_training
+```
+
+Abra [http://localhost:6006](http://localhost:6006) para monitorar o conviction index, transicoes de estado de maturidade, especializacao de gates e curvas de loss do treinamento.
+
+> Para a checklist completa passo-a-passo do ciclo de coaching e o guia detalhado de armazenamento, consulte o [Guia do Usuario](docs/USER_GUIDE_PT.md).
+
+---
+
+## Solucao de Problemas
+
+### Problemas Comuns
+
+| Problema | Solucao |
+|----------|---------|
+| `ModuleNotFoundError: No module named 'kivy'` | Instale as dependencias do Kivy: `pip install kivy-deps.glew==0.3.1 kivy-deps.sdl2==0.7.0 kivy-deps.angle==0.4.0 Kivy==2.3.0 KivyMD==1.2.0` (pule kivy-deps no Linux) |
+| `CUDA not available` | Verifique o driver com `nvidia-smi`, reinstale o PyTorch com `--index-url https://download.pytorch.org/whl/cu121` |
+| `sentence-transformers not installed` | Aviso nao-bloqueante. Instale com `pip install sentence-transformers` para embeddings melhorados, ou ignore (fallback TF-IDF funciona) |
+| App crasha com erro GL | Configure `KIVY_GL_BACKEND=angle_sdl2` (Windows) ou `KIVY_GL_BACKEND=sdl2` (Linux) |
+| `database is locked` | Feche todos os processos Python e reinicie |
+| Tela branca/vazia | Execute a partir da raiz do projeto: `python Programma_CS2_RENAN/main.py`, verifique que `layout.kv` existe |
+| Reset para estado de fabrica | Delete `Programma_CS2_RENAN/user_settings.json` e reinicie |
+
+### Localizacoes dos Bancos de Dados
+
+| Banco de Dados | Caminho | Conteudo |
+|----------------|---------|----------|
+| Principal | `Programma_CS2_RENAN/backend/storage/database.db` | Estatisticas do jogador, estado do coaching, dados de treinamento |
+| HLTV | `Programma_CS2_RENAN/backend/storage/hltv_metadata.db` | Metadados de jogadores profissionais |
+| Conhecimento | `Programma_CS2_RENAN/data/knowledge_base.db` | Base de conhecimento RAG |
+| Por partida | `{PRO_DEMO_PATH}/match_data/match_*.db` | Dados tick-a-tick da partida |
+
+> Para o troubleshooting completo, consulte o [Guia do Usuario](docs/USER_GUIDE_PT.md).
 
 ---
 
@@ -179,7 +788,7 @@ O projeto mantem uma hierarquia de validacao em multiplos niveis:
 Este projeto possui licenca dupla. Copyright (c) 2025-2026 Renan Augusto Macena.
 
 Voce pode escolher entre:
-- **Licenca Proprietaria** — Todos os direitos reservados (padrao). Visualizacao para fins educacionais e permitida.
+- **Licenca Proprietaria** — Todos os Direitos Reservados (padrao). Visualizacao para fins educacionais e permitida.
 - **Apache License 2.0** — Open source permissiva com protecao de patentes.
 
 Consulte [LICENSE](LICENSE) para os termos completos.
@@ -239,8 +848,8 @@ Guia completo para instalar, configurar e usar o Macena CS2 Analyzer no Windows 
 ### 2.1 Clonar o Repositorio
 
 ```bash
-git clone https://github.com/renanaugustomacena-ux/Macena_cs2_analyzer.git
-cd Macena_cs2_analyzer
+git clone https://github.com/renanaugustomacena-ux/Counter-Strike-coach-AI.git
+cd Counter-Strike-coach-AI
 ```
 
 ### 2.2 Windows (Configuracao Automatizada)

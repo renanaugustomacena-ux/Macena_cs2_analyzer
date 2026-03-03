@@ -7,7 +7,7 @@ Complete ML infrastructure with 6 model architectures and integrated training pi
 ## Model Architectures
 
 ### RAP Coach (`rap_coach/`)
-6-layer pedagogical architecture:
+7-layer pedagogical architecture:
 - **Perception Layer** — ResNet-based feature extraction from tactical situations
 - **Memory Layer** — LTC-Hopfield hybrid with 512 associative slots for pattern retention
 - **Strategy Layer** — Contextual attention mechanism for tactical decision synthesis
@@ -46,7 +46,7 @@ Round win probability prediction based on economy, positioning, and momentum sta
 ## Sub-packages
 
 - `rap_coach/` — RAP model implementation (model.py, memory.py, trainer.py)
-- `advanced/` — VL-JEPA, BrainBridge, Superposition experiments
+- `advanced/` — Experimental module stub (original modules removed in G-06)
 - `inference/` — GhostEngine for real-time prediction
 - `layers/` — Custom layers (SuperpositionLayer, attention mechanisms)
 

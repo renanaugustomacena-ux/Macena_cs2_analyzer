@@ -6,14 +6,14 @@ Validation and diagnostic tools forming a 4-level hierarchy for comprehensive sy
 
 ## Validation Hierarchy
 
-1. **Headless Validator** — Fast gate (79 checks, <20s, must pass before task completion)
+1. **Headless Validator** — Fast gate (245+ checks across 23 phases, <20s, must pass before task completion)
 2. **Pytest** — Logic validation (390+ tests)
 3. **Backend Validator** — Build and health checks (40 checks)
 4. **Goliath Hospital** — Comprehensive diagnostic suite
 
 ## Core Tools
 
-- `headless_validator.py` — Fast validation gate with 79 checks
+- `headless_validator.py` — Fast validation gate with 245+ checks across 23 phases
 - `Goliath_Hospital.py` — Hospital-style diagnostics with departments:
   - NEUROLOGY (models), CARDIOLOGY (data), ICU (services)
   - SECURITY (secrets, injection), IMAGING (architecture)

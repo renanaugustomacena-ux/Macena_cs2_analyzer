@@ -6,14 +6,14 @@ Strumenti di validazione e diagnostica che formano una gerarchia a 4 livelli per
 
 ## Gerarchia di Validazione
 
-1. **Headless Validator** — Gate veloce (79 controlli, <20s, deve passare prima del completamento task)
+1. **Headless Validator** — Gate veloce (245+ controlli in 23 fasi, <20s, deve passare prima del completamento task)
 2. **Pytest** — Validazione logica (oltre 390 test)
 3. **Backend Validator** — Controlli di build e salute (40 controlli)
 4. **Goliath Hospital** — Suite diagnostica completa
 
 ## Strumenti Principali
 
-- `headless_validator.py` — Gate di validazione veloce con 79 controlli
+- `headless_validator.py` — Gate di validazione veloce con 245+ controlli in 23 fasi
 - `Goliath_Hospital.py` — Diagnostica in stile ospedaliero con reparti:
   - NEUROLOGY (modelli), CARDIOLOGY (dati), ICU (servizi)
   - SECURITY (secrets, injection), IMAGING (architettura)

@@ -1,8 +1,8 @@
 > **[English](README.md)** | **[Italiano](README_IT.md)** | **[Português](README_PT.md)**
 
-# RAP Coach — Architettura Ricorrente a 6 Livelli
+# RAP Coach — Architettura Ricorrente a 7 Livelli
 
-RAP (Recurrent Architecture for Pedagogy) Coach implementa un'architettura neurale a 6 livelli con memoria LTC-Hopfield per coaching tattico.
+RAP (Recurrent Architecture for Pedagogy) Coach implementa un'architettura neurale a 7 livelli con memoria LTC-Hopfield per coaching tattico.
 
 ## Livelli Architettura
 
@@ -21,15 +21,17 @@ RAP (Recurrent Architecture for Pedagogy) Coach implementa un'architettura neura
 ### Livello 5: Comunicazione
 - **communication.py** — `RAPCommunication` — Livello output che produce raccomandazioni coaching con punteggi confidenza
 
-### Livello 6: Classificazione Ruolo
+### Livello 6: Analisi Temporale
+- **chronovisor_scanner.py** — `ChronovisorScanner`, `CriticalMoment` — Rilevamento momenti critici multi-scala (timescale micro/standard/macro) per coaching consapevole del momentum
+
+### Livello 7: Classificazione Ruolo
 - **NeuralRoleHead** (in `model.py`) — Classificatore ruoli 5 classi (Entry/Lurk/Support/AWP/IGL) con meccanismo consenso
 
 ## Moduli di Supporto
 
-- **model.py** — `RAPCoachModel` — Orchestrazione completa RAP Coach integrando tutti i 6 livelli
+- **model.py** — `RAPCoachModel` — Orchestrazione completa RAP Coach integrando tutti i 7 livelli
 - **trainer.py** — `RAPTrainer` — Orchestrazione training con supporto callbacks per TensorBoard/Observatory
-- **chronovisor_scanner.py** — `ChronovisorScanner`, `CriticalMoment` — Rilevamento momenti critici multi-scala (timescale micro/standard/macro)
-- **skill_model.py** — `SkillLatentModel`, `SkillAxes` — Rappresentazione assi abilità giocatore (spazio latente stile VAE)
+- **skill_model.py** — `SkillLatentModel`, `SkillAxes` — Rappresentazione assi abilita giocatore (spazio latente stile VAE)
 
 ## Dipendenze
 PyTorch, ncps (LTC), hflayers (Hopfield), NumPy.
