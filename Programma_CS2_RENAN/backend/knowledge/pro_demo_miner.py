@@ -95,23 +95,26 @@ class ProDemoMiner:
         Returns:
             Number of knowledge entries created
         """
-        # For now, generate knowledge from match metadata
-        # In production, would parse actual demo file with demoparser2
+        # STUB: This method generates template-based knowledge from match metadata only.
+        # It does NOT parse actual demo files. All "knowledge" produced is generic text
+        # derived from team names and event names — not from real gameplay analysis.
+        # TODO: Integrate demoparser2 to extract real tactical insights from demo files.
+        logger.warning(
+            "pro_demo_miner: Knowledge for match %s is metadata-derived (no demo analysis).",
+            download.match_id,
+        )
 
         knowledge_entries = []
 
-        # Extract map name from match_id
         map_name = self._extract_map_from_match_id(download.match_id)
 
-        # Generate map-specific knowledge
         if map_name:
             knowledge_entries.extend(self._generate_map_knowledge(download, map_name))
 
-        # Generate team-specific knowledge
         knowledge_entries.extend(self._generate_team_knowledge(download))
 
-        # Add to database
         for entry in knowledge_entries:
+            entry["description"] = "[Metadata-derived] " + entry.get("description", "")
             try:
                 self.populator.add_knowledge(**entry)
             except Exception as e:

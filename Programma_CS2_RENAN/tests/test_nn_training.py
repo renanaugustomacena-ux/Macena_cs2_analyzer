@@ -9,10 +9,6 @@ Covers:
 
 import sys
 
-# --- Venv Guard ---
-if sys.prefix == sys.base_prefix:
-    print("ERROR: Not in venv.", file=sys.stderr)
-    sys.exit(2)
 
 import numpy as np
 import pytest

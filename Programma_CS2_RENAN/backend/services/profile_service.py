@@ -38,13 +38,6 @@ class ProfileService:
 
         profile = PlayerProfile(
             player_name=CS2_PLAYER_NAME,
-            steam_id=steam_id,
-            steam_level=0,
-            total_playtime_hours=steam_data.get("playtime_forever", 0),
-            faceit_id=faceit_data.get("faceit_id"),
-            faceit_elo=faceit_data.get("elo", 0),
-            faceit_level=faceit_data.get("level", 0),
-            last_updated=datetime.now(timezone.utc),
         )
 
         _persist_profile_update(profile)

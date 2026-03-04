@@ -19,6 +19,7 @@ Path Resolution:
 """
 
 import os
+import threading
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Generator, List, Optional
@@ -212,6 +213,7 @@ class MatchDataManager:
 
         # Cache of active engines
         self._engines = {}
+        self._engine_lock = threading.Lock()
 
     def _get_match_db_path(self, match_id: int) -> str:
         """Get the path to a match's database file."""
@@ -221,45 +223,46 @@ class MatchDataManager:
 
     def _get_or_create_engine(self, match_id: int):
         """Get or create a SQLAlchemy engine for a match database."""
-        if match_id in self._engines:
-            return self._engines[match_id]
+        with self._engine_lock:
+            if match_id in self._engines:
+                return self._engines[match_id]
 
-        # LRU eviction: dispose oldest engines when cache is full
-        if len(self._engines) >= self._MAX_CACHED_ENGINES:
-            oldest_key = next(iter(self._engines))
-            self._engines.pop(oldest_key).dispose()
+            # LRU eviction: dispose oldest engines when cache is full
+            if len(self._engines) >= self._MAX_CACHED_ENGINES:
+                oldest_key = next(iter(self._engines))
+                self._engines.pop(oldest_key).dispose()
 
-        db_path = self._get_match_db_path(match_id)
-        db_url = f"sqlite:///{db_path}"
+            db_path = self._get_match_db_path(match_id)
+            db_url = f"sqlite:///{db_path}"
 
-        engine = create_engine(
-            db_url, echo=False, connect_args={"check_same_thread": False, "timeout": 30}
-        )
+            engine = create_engine(
+                db_url, echo=False, connect_args={"check_same_thread": False, "timeout": 30}
+            )
 
-        # Configure WAL mode for each match database
-        @event.listens_for(engine, "connect")
-        def set_sqlite_pragma(dbapi_connection, connection_record):
-            cursor = dbapi_connection.cursor()
-            cursor.execute("PRAGMA journal_mode=WAL")
-            cursor.execute("PRAGMA synchronous=NORMAL")
-            cursor.execute("PRAGMA busy_timeout=30000")
-            cursor.close()
+            # Configure WAL mode for each match database
+            @event.listens_for(engine, "connect")
+            def set_sqlite_pragma(dbapi_connection, connection_record):
+                cursor = dbapi_connection.cursor()
+                cursor.execute("PRAGMA journal_mode=WAL")
+                cursor.execute("PRAGMA synchronous=NORMAL")
+                cursor.execute("PRAGMA busy_timeout=30000")
+                cursor.close()
 
-        # Create tables for this match.
-        # FRAGILE: The tables= filter MUST be kept. Removing it would cause all
-        # ~20 global SQLModel tables (from db_models.py) to be created in every
-        # per-match database file whenever those modules have been imported.
-        SQLModel.metadata.create_all(
-            engine,
-            tables=[
-                MatchTickState.__table__,
-                MatchEventState.__table__,
-                MatchMetadata.__table__,
-            ],
-        )
+            # Create tables for this match.
+            # FRAGILE: The tables= filter MUST be kept. Removing it would cause all
+            # ~20 global SQLModel tables (from db_models.py) to be created in every
+            # per-match database file whenever those modules have been imported.
+            SQLModel.metadata.create_all(
+                engine,
+                tables=[
+                    MatchTickState.__table__,
+                    MatchEventState.__table__,
+                    MatchMetadata.__table__,
+                ],
+            )
 
-        self._engines[match_id] = engine
-        return engine
+            self._engines[match_id] = engine
+            return engine
 
     @contextmanager
     def get_match_session(self, match_id: int) -> Generator[Session, None, None]:
@@ -584,6 +587,7 @@ class MatchDataManager:
 # ============ Singleton Instance ============
 
 _match_data_manager: Optional[MatchDataManager] = None
+_mdm_lock = threading.Lock()
 
 
 def get_match_data_manager(match_data_path: Optional[str] = None) -> MatchDataManager:
@@ -596,7 +600,12 @@ def get_match_data_manager(match_data_path: Optional[str] = None) -> MatchDataMa
     """
     global _match_data_manager
 
-    if _match_data_manager is None:
+    if _match_data_manager is not None:
+        return _match_data_manager
+
+    with _mdm_lock:
+        if _match_data_manager is not None:
+            return _match_data_manager
         if match_data_path is None:
             from Programma_CS2_RENAN.core.config import MATCH_DATA_PATH
 

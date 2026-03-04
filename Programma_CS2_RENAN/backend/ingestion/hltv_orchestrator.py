@@ -54,6 +54,7 @@ class HLTVOrchestrator:
         from Programma_CS2_RENAN.backend.storage.db_models import PlayerMatchStats
 
         db = get_db_manager()
+        data = dict(data)  # Avoid mutating caller's dict
         p_name = data.pop("player_name")
 
         stat_record = PlayerMatchStats(

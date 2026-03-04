@@ -51,6 +51,14 @@ class HLTVApiService:
         self.browser_manager = BrowserManager(headless=headless)
         self.limiter = RateLimiter()
         self.proxy = get_proxy()
+        self._flaresolverr = None  # Lazy-init on first Cloudflare block
+
+    def _get_flaresolverr(self):
+        """Lazy-init FlareSolverr client as Cloudflare bypass fallback."""
+        if self._flaresolverr is None:
+            from Programma_CS2_RENAN.ingestion.hltv.flaresolverr_client import FlareSolverrClient
+            self._flaresolverr = FlareSolverrClient()
+        return self._flaresolverr
 
     def sync_range(self, start_id, end_id):
         page = self.browser_manager.start()
@@ -153,7 +161,9 @@ def _is_cloudflare_block(page) -> bool:
 
 def _process_player_page(svc, page, db, pid):
     if _is_cloudflare_block(page):  # F6-21: robust Cloudflare detection
-        logger.warning("Cloudflare detected for ID %s", pid)
+        logger.warning("Cloudflare detected for ID %s — trying FlareSolverr fallback", pid)
+        if _try_flaresolverr_fallback(svc, page, db, pid):
+            return True
         svc.limiter.wait("backoff")
         return False
     if not page.locator(".statistics").is_visible():
@@ -161,6 +171,40 @@ def _process_player_page(svc, page, db, pid):
         return False
     _finalize_extraction(svc, page, db, pid)
     return True
+
+
+def _try_flaresolverr_fallback(svc, page, db, pid):
+    """Attempt to fetch player page via FlareSolverr when Cloudflare blocks."""
+    try:
+        client = svc._get_flaresolverr()
+        if not client.is_available():
+            logger.warning("FlareSolverr not available — skipping fallback")
+            return False
+
+        url = f"https://www.hltv.org/stats/players/individual/{pid}/_"
+        html = client.get(url)
+        if not html:
+            return False
+
+        # Load FlareSolverr HTML into Playwright page for JS extraction
+        page.set_content(html, wait_until="domcontentloaded")
+
+        if _is_cloudflare_block(page):
+            logger.error("FlareSolverr also blocked by Cloudflare for ID %s", pid)
+            return False
+
+        if not page.locator(".statistics").is_visible():
+            logger.warning("FlareSolverr: no stats visible for ID %s", pid)
+            return False
+
+        # Save to cache for future reuse
+        svc.proxy.save_player_html(pid, html)
+        _finalize_extraction(svc, page, db, pid)
+        logger.info("FlareSolverr fallback succeeded for ID %s", pid)
+        return True
+    except Exception as exc:
+        logger.error("FlareSolverr fallback failed for ID %s: %s", pid, exc)
+        return False
 
 
 def _finalize_extraction(svc, page, db, pid):

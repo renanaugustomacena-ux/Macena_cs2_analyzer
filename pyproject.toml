@@ -1,0 +1,51 @@
+# pyproject.toml — Macena CS2 Analyzer
+# Unified tool configuration. Source of truth for tool behavior.
+# Pre-commit hooks (.pre-commit-config.yaml) must align with these values.
+
+[tool.black]
+line-length = 100
+target-version = ["py310"]
+exclude = '''
+/(
+    external_analysis
+  | dist
+  | \.venv
+  | venv.*
+)/
+'''
+
+[tool.isort]
+profile = "black"
+line_length = 100
+skip_glob = ["external_analysis/*", "dist/*", ".venv/*", "venv*/*"]
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+check_untyped_defs = true
+disallow_untyped_defs = false
+exclude = [
+    "external_analysis/",
+    "dist/",
+    "\\.venv/",
+    "tests/",
+]
+
+[tool.coverage.run]
+source = ["Programma_CS2_RENAN"]
+omit = [
+    "*/tests/*",
+    "*/.venv/*",
+    "*/external_analysis/*",
+]
+
+[tool.coverage.report]
+fail_under = 49
+show_missing = true
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.",
+    "if TYPE_CHECKING:",
+]

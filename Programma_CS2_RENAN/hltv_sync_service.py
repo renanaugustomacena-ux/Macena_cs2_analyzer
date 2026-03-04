@@ -41,11 +41,28 @@ def run_sync_loop():
     # Import state_manager early for status updates
     from Programma_CS2_RENAN.backend.storage.state_manager import state_manager
 
-    # --- Pre-flight: FlareSolverr availability ---
+    # --- Pre-flight: Auto-start FlareSolverr Docker container ---
+    from Programma_CS2_RENAN.ingestion.hltv.docker_manager import ensure_flaresolverr
+
+    project_root = str(Path(__file__).resolve().parent.parent)
+    if not ensure_flaresolverr(project_root):
+        logger.error("FlareSolverr non avviabile automaticamente.")
+        state_manager.update_status(
+            "hunter", "Blocked", "FlareSolverr/Docker non disponibile"
+        )
+        state_manager.add_notification(
+            "hunter",
+            "error",
+            "HLTV sync bloccato: FlareSolverr non disponibile e auto-start fallito. "
+            "Verifica che Docker Desktop sia in esecuzione.",
+        )
+        return
+
+    # --- Pre-flight: FlareSolverr availability (safety net) ---
     solver = FlareSolverrClient()
     if not solver.is_available():
         logger.error(
-            "FlareSolverr non disponibile! Avvialo con: docker start flaresolverr"
+            "FlareSolverr non disponibile dopo auto-start! Avvialo con: docker start flaresolverr"
         )
         state_manager.update_status(
             "hunter", "Blocked", "FlareSolverr non raggiungibile"

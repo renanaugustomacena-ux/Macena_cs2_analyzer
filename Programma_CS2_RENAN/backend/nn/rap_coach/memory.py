@@ -27,8 +27,10 @@ class RAPMemory(nn.Module):
         # 1. Liquid Time-Constant (LTC) Layer
         # Models continuous-time dynamics (variable frame rates, "pace" of the game)
         # We use AutoNCP wiring to create a sparse, brain-like connectivity.
-        # NCP Constraint: units must be significantly larger than output_size (inter-neurons)
-        ncp_units = hidden_dim + 32
+        # NCP Constraint: units must be significantly larger than output_size (inter-neurons).
+        # Ratio 2:1 ensures enough inter-neurons for expressive wiring.
+        # NOTE: changing this invalidates existing checkpoints — version-gated loading required.
+        ncp_units = hidden_dim * 2
         self.wiring = AutoNCP(units=ncp_units, output_size=hidden_dim)
         self.ltc = LTC(input_dim, self.wiring, batch_first=True)
 

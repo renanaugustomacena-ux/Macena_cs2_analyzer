@@ -6,10 +6,6 @@ Tests ML-RAG synthesis, confidence scoring, and priority classification.
 
 import sys
 
-# --- Venv Guard ---
-if sys.prefix == sys.base_prefix:
-    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
-    sys.exit(2)
 
 import pytest
 from sqlmodel import select
@@ -24,6 +20,7 @@ from Programma_CS2_RENAN.backend.storage.database import get_db_manager, init_da
 from Programma_CS2_RENAN.backend.storage.db_models import CoachingInsight, TacticalKnowledge
 
 
+@pytest.mark.integration
 class TestHybridCoachingEngine:
     """Test suite for hybrid coaching engine."""
 
@@ -203,6 +200,7 @@ class TestHybridCoachingEngine:
                 session.commit()
 
 
+@pytest.mark.integration
 class TestInsightPriority:
     """Test suite for InsightPriority enum."""
 
@@ -214,6 +212,7 @@ class TestInsightPriority:
         assert InsightPriority.LOW.value == "low"
 
 
+@pytest.mark.integration
 class TestHybridInsight:
     """Test suite for HybridInsight dataclass."""
 

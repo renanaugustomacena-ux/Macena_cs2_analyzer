@@ -80,5 +80,6 @@ def load_nn(version, model, user_id=None):
                 raise
         except Exception as e:
             logger.exception("Failed to load model from %s", path)
+            raise
 
     return model

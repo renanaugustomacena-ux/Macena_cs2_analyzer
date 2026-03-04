@@ -11,10 +11,6 @@ Z-cutoff values:
 
 import sys
 
-# --- Venv Guard ---
-if sys.prefix == sys.base_prefix:
-    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
-    sys.exit(2)
 
 import pytest
 

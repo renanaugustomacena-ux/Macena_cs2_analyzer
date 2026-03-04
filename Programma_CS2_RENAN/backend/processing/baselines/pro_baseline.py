@@ -433,17 +433,26 @@ class TemporalBaselineDecay:
         """
         shifted = []
         for metric in old_baseline:
+            if metric.startswith("_"):
+                continue
             if metric not in new_baseline:
                 continue
+            old_val = old_baseline[metric]
+            new_val = new_baseline[metric]
+            # Skip non-numeric entries (e.g. _provenance="hard_default")
+            if not isinstance(old_val, (int, float, dict)):
+                continue
+            if not isinstance(new_val, (int, float, dict)):
+                continue
             old_mean = (
-                old_baseline[metric].get("mean", 0)
-                if isinstance(old_baseline[metric], dict)
-                else old_baseline[metric]
+                old_val.get("mean", 0)
+                if isinstance(old_val, dict)
+                else old_val
             )
             new_mean = (
-                new_baseline[metric].get("mean", 0)
-                if isinstance(new_baseline[metric], dict)
-                else new_baseline[metric]
+                new_val.get("mean", 0)
+                if isinstance(new_val, dict)
+                else new_val
             )
 
             if old_mean == 0:

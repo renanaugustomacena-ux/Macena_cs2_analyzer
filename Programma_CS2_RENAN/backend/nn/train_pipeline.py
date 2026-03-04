@@ -3,7 +3,7 @@ import torch.nn as nn
 from sqlmodel import select
 from torch.utils.data import DataLoader
 
-from Programma_CS2_RENAN.backend.nn.config import BATCH_SIZE, EPOCHS, HIDDEN_DIM, INPUT_DIM, LEARNING_RATE
+from Programma_CS2_RENAN.backend.nn.config import BATCH_SIZE, EPOCHS, HIDDEN_DIM, INPUT_DIM, LEARNING_RATE, OUTPUT_DIM
 from Programma_CS2_RENAN.backend.nn.dataset import ProPerformanceDataset
 from Programma_CS2_RENAN.backend.nn.model import TeacherRefinementNN
 from Programma_CS2_RENAN.backend.storage.database import get_db_manager

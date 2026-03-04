@@ -7,10 +7,6 @@ Non-destructive: only cleans up records created by each test.
 
 import sys
 
-# --- Venv Guard ---
-if sys.prefix == sys.base_prefix:
-    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
-    sys.exit(2)
 
 import pytest
 from sqlmodel import select
@@ -25,6 +21,7 @@ from Programma_CS2_RENAN.backend.storage.db_models import HLTVDownload, Tactical
 _TEST_PREFIX = "/__test_pro_miner__/"
 
 
+@pytest.mark.integration
 class TestProDemoMiner:
     """Test suite for pro demo mining."""
 

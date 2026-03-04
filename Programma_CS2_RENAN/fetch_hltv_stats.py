@@ -199,29 +199,26 @@ class HLTVStatFetcher:
         return traits
 
     def _parse_clutches(self, soup: BeautifulSoup) -> Dict[str, Any]:
-        """Parses the Clutches table."""
+        """Parses the Clutches table.
+
+        STUB: HLTV clutch page layout requires HTML inspection to implement.
+        Returns empty dict rather than fabricated data.
+        """
         clutches = {}
-        # Look for summary box with "1 on 1", "1 on 2" headers
-        # or the table "All clutch history" (too detailed)
-        # We prefer the summary boxes if they exist, otherwise we count from table?
-        # Actually HLTV has a "Clutches" summary stats-table usually.
+        # Try to parse clutch stats table if it exists
+        rows = soup.select(".stats-table tr")
+        for row in rows:
+            cols = row.select("td")
+            text = row.text.lower()
+            if "1 on 1" in text and len(cols) >= 2:
+                clutches["1on1_wins"] = self._safe_float(cols[-2].text)
+                clutches["1on1_losses"] = self._safe_float(cols[-1].text)
+            elif "1 on 2" in text and len(cols) >= 2:
+                clutches["1on2_wins"] = self._safe_float(cols[-2].text)
+            elif "1 on 3" in text and len(cols) >= 2:
+                clutches["1on3_wins"] = self._safe_float(cols[-2].text)
 
-        # Scrape the "summary-matrix" or specific header boxes
-        # Simplified: Look for text "1 on 1" and the number below/next to it
-
-        # Example: 1 on 1 - 487 Wins - 207 Losses
-        # Often in a grid
-        clutch_types = ["1on1", "1on2", "1on3", "1on4", "1on5"]
-
-        # Search for summary cards
-        for c_type in clutch_types:
-            # This is heuristic, actual HTML inspection required for high robust
-            # We assume a specific layout might vary, so we look for labeled containers
-            pass
-
-        # Fallback to Summary Table aggregation if needed
-        # For now, let's grab the "Total" if possible
-        return {"scraped": "true_but_heuristic_pending"}
+        return clutches
 
     def _parse_multikills(self, soup: BeautifulSoup) -> Dict[str, Any]:
         """Parses Multi-Kill summary."""

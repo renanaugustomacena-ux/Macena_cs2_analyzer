@@ -20,8 +20,8 @@ from pathlib import Path
 
 # --- Venv Guard ---
 if sys.prefix == sys.base_prefix:
-    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
-    sys.exit(2)
+    import pytest
+    pytest.exit("Not running in virtualenv — activate before running tests", returncode=2)
 
 import pytest
 
@@ -32,6 +32,24 @@ if str(PROJECT_ROOT) not in sys.path:
 
 # Prevent Kivy from hijacking CLI args
 os.environ["KIVY_NO_ARGS"] = "1"
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "integration: tests that read/write production database.db"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    """Skip integration tests unless CS2_INTEGRATION_TESTS=1 is set."""
+    if os.environ.get("CS2_INTEGRATION_TESTS") == "1":
+        return
+    skip_integration = pytest.mark.skip(
+        reason="Set CS2_INTEGRATION_TESTS=1 to run integration tests on production DB"
+    )
+    for item in items:
+        if "integration" in item.keywords:
+            item.add_marker(skip_integration)
 
 
 @pytest.fixture

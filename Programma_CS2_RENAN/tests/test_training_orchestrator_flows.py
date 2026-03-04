@@ -10,10 +10,6 @@ CI-portable: uses mocks for external dependencies.
 
 import sys
 
-# --- Venv Guard ---
-if sys.prefix == sys.base_prefix:
-    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
-    sys.exit(2)
 
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch

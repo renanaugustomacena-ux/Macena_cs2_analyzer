@@ -61,8 +61,10 @@ class BackupManager:
                 resolved = target_path.resolve()
                 if not str(resolved).startswith(str(target_path.parent.resolve())):
                     raise ValueError(f"Backup path escapes target directory: {resolved}")
+                from sqlalchemy import text
+
                 target_path_safe = str(target_path).replace("'", "''")
-                conn.execute(f"VACUUM INTO '{target_path_safe}'")
+                conn.execute(text(f"VACUUM INTO '{target_path_safe}'"))
 
             # 2. Verify Output
             if not os.path.exists(target_path):

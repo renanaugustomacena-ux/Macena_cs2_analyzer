@@ -1,0 +1,17 @@
+{
+  "name": "docs",
+  "version": "1.0.0",
+  "description": "> **[English](README.md)** | **[Italiano](README_IT.md)** | **[Português](README_PT.md)**",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "marked": "^17.0.3",
+    "puppeteer": "^24.37.5"
+  }
+}

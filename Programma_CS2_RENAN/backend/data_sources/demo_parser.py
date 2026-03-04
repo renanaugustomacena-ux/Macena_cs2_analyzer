@@ -172,8 +172,8 @@ def _compute_per_round_variance(parser):
         if d_df.empty or h_df.empty:
             return None
 
-        d_name = _find_player_column(d_df, ["attacker_name", "user_name", "player_name"])
-        h_name = _find_player_column(h_df, ["attacker_name", "user_name", "player_name"])
+        d_name = _resolve_name_column(d_df, ["attacker_name", "user_name", "player_name"])
+        h_name = _resolve_name_column(h_df, ["attacker_name", "user_name", "player_name"])
 
         if not d_name or not h_name or "total_rounds_played" not in d_df.columns:
             return None

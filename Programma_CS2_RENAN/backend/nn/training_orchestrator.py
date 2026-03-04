@@ -285,18 +285,15 @@ class TrainingOrchestrator:
                         from Programma_CS2_RENAN.backend.nn.jepa_model import jepa_contrastive_loss
 
                         # Encode negatives into latent space (same as pred/target)
+                        # Expected shape: raw_neg [batch, n_neg, feat_dim]
+                        # Must produce neg_latent [batch, n_neg, latent_dim] for contrastive loss
                         raw_neg = tensor_batch.get("negatives")
                         b, n_neg, feat_dim = raw_neg.shape
-                        neg_encoded = trainer.model.target_encoder(raw_neg)
-                        neg_latent = (
-                            neg_encoded.mean(dim=1) if neg_encoded.dim() == 3 else neg_encoded
-                        )
-                        # Reshape: each sample has n_neg negatives
-                        neg_latent = (
-                            neg_latent.unsqueeze(0)
-                            if neg_latent.dim() == 2 and b == 1
-                            else neg_latent
-                        )
+                        # Flatten batch*n_neg, encode, then reshape back
+                        raw_neg_flat = raw_neg.reshape(b * n_neg, feat_dim)
+                        neg_encoded_flat = trainer.model.target_encoder(raw_neg_flat)
+                        latent_dim = neg_encoded_flat.shape[-1]
+                        neg_latent = neg_encoded_flat.reshape(b, n_neg, latent_dim)
 
                         loss = jepa_contrastive_loss(pred, target, neg_latent).item()
                     else:

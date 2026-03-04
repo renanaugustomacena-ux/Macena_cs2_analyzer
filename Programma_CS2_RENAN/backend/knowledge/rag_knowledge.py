@@ -447,7 +447,7 @@ def generate_unified_coaching_insight(
             # Build context
             context = ExperienceContext(
                 map_name=map_name or "unknown",
-                round_phase=_infer_round_phase(tick_data),
+                round_phase=infer_round_phase(tick_data),
                 side=tick_data.get("team", "T"),
                 position_area=tick_data.get("position_area"),
             )

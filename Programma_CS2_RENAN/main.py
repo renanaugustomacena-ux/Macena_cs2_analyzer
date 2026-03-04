@@ -306,20 +306,27 @@ class UserProfileScreen(MDScreen):
             with db.get_session() as s:
                 p = s.exec(select(PlayerProfile)).first()
                 if p:
-                    # Marshal back to UI thread
-                    Clock.schedule_once(lambda dt: self._apply_profile_to_ui(p), 0)
+                    # Extract data before session closes to avoid DetachedInstanceError
+                    profile_data = {
+                        "player_name": p.player_name,
+                        "bio": p.bio,
+                        "role": p.role,
+                        "steam_avatar_url": getattr(p, "steam_avatar_url", None),
+                        "pc_specs_json": getattr(p, "pc_specs_json", None),
+                    }
+                    Clock.schedule_once(lambda dt: self._apply_profile_to_ui(profile_data), 0)
         except Exception as e:
             app_logger.debug("Profile Load Fail: %s", e)
 
     def _apply_profile_to_ui(self, p):
-        self.ids.name_label.text = p.player_name
-        self.ids.bio_label.text = p.bio or "..."
-        self.ids.role_label.text = f"Role: {p.role}"
-        self._update_role_badge(p.role)
-        if hasattr(p, "steam_avatar_url") and p.steam_avatar_url:
-            self.ids.avatar_image.source = p.steam_avatar_url
-        if hasattr(p, "pc_specs_json") and p.pc_specs_json:
-            specs = json.loads(p.pc_specs_json)
+        self.ids.name_label.text = p["player_name"] or "Player"
+        self.ids.bio_label.text = p["bio"] or "..."
+        self.ids.role_label.text = f"Role: {p['role']}"
+        self._update_role_badge(p["role"])
+        if p.get("steam_avatar_url"):
+            self.ids.avatar_image.source = p["steam_avatar_url"]
+        if p.get("pc_specs_json"):
+            specs = json.loads(p["pc_specs_json"])
             self.ids.specs_label.text = (
                 f"CPU: {specs.get('cpu', 'N/A')} | GPU: {specs.get('gpu', 'N/A')}"
             )
@@ -665,11 +672,15 @@ class CS2AnalyzerApp(MDApp):
             from Programma_CS2_RENAN.backend.control.console import get_console
 
             self.console = get_console()
-            # self.console.ingest_manager.scan_all()
-            # We trust the lifecycle manager's logging
         else:
             self.service_active = False
             app_logger.error("Session Engine failed to start (Lifecycle Manager)")
+            self.show_error_dialog(
+                "Daemon Startup Failed",
+                "The background service could not start.\n"
+                "Navigation and settings still work.\n"
+                "Ingestion and ML features require a restart.",
+            )
 
     def set_ingest_mode(self, auto: bool):
         """Toggles between Manual and Continuous ingestion mode."""
@@ -702,13 +713,18 @@ class CS2AnalyzerApp(MDApp):
 
     def start_manual_ingestion(self):
         """Manually triggers the ingestion cycle."""
+        if not self.console:
+            self.show_error_dialog("Service Offline", "Backend not initialized yet. Wait for startup to complete.")
+            return
         app_logger.info("Starting manual ingestion")
-        # scan_all checks if already running, so safe to call
         self.console.ingest_manager.scan_all(high_priority=False)
         self.show_success_dialog("Ingestion Started", "The background digester is now active.")
 
     def stop_manual_ingestion(self):
         """Signals the ingestion process to stop."""
+        if not self.console:
+            self.show_error_dialog("Service Offline", "Backend not initialized yet.")
+            return
         app_logger.info("Stopping ingestion")
         self.console.ingest_manager.stop()
         self.show_success_dialog(
@@ -724,6 +740,14 @@ class CS2AnalyzerApp(MDApp):
                 Clock.schedule_once(lambda dt: self._ensure_daemon_running(), 0.5)
             except Exception as e:
                 app_logger.critical("Infrastructure Init Failed: %s", e, exc_info=True)
+                Clock.schedule_once(
+                    lambda dt, err=str(e): self.show_error_dialog(
+                        "Infrastructure Error",
+                        f"Database initialization failed: {err}\n\n"
+                        "Some features will be unavailable.",
+                    ),
+                    0,
+                )
 
         threading.Thread(target=_sequence, daemon=True).start()
 
@@ -790,7 +814,22 @@ class CS2AnalyzerApp(MDApp):
                 app_logger.debug("Knowledge Session Fail: %s", e_k)
                 t_epoch, t_total, t_loss, v_loss, eta = 0, 0, 0.0, 0.0, 0.0
 
-            # ... (Section 2 omitted for brevity) ...
+            # 2. Gather Ingestion Queue Status
+            try:
+                with db.get_session() as s_q:
+                    from Programma_CS2_RENAN.backend.storage.db_models import IngestionTask
+
+                    active_tasks = s_q.exec(
+                        select(IngestionTask)
+                        .where(IngestionTask.status.in_(["processing", "queued"]))
+                        .limit(20)
+                    ).all()
+                    knowledge_ticks = s_q.exec(
+                        select(func.sum(IngestionTask.last_tick_processed))
+                        .where(IngestionTask.status == "complete")
+                    ).one() or 0
+            except Exception as e_q:
+                app_logger.debug("Queue Status Fail: %s", e_q)
 
             # 3. Update UI
             Clock.schedule_once(
@@ -1264,41 +1303,67 @@ class CS2AnalyzerApp(MDApp):
         from kivymd.uix.list import MDList, MDListItem, MDListItemHeadlineText
         from kivymd.uix.scrollview import MDScrollView
 
-        content = MDBoxLayout(orientation="vertical", adaptive_height=True, size_hint_y=None)
+        content = MDBoxLayout(orientation="vertical", size_hint_y=None, height="250dp")
         scroll = MDScrollView(size_hint_y=None, height="200dp")
         list_view = MDList()
 
-        dialog = None
+        # Forward-declare so closure can reference it
+        drive_dialog = None
 
         def _select_drive(drive_path):
-            nonlocal dialog  # F7-02: explicit nonlocal reference prevents stale closure capture
-            if dialog:
-                dialog.dismiss()
+            nonlocal drive_dialog  # F7-02: explicit nonlocal reference prevents stale closure capture
+            if drive_dialog:
+                drive_dialog.dismiss()
             self.file_manager.show(drive_path)
 
         for drive in drives:
-            # Closure hack for drive variable
             item = MDListItem(
-                MDListItemHeadlineText(text=drive), on_release=lambda x, d=drive: _select_drive(d)
+                MDListItemHeadlineText(text=drive),
+                on_release=lambda x, d=drive: _select_drive(d),
             )
             list_view.add_widget(item)
 
         scroll.add_widget(list_view)
         content.add_widget(scroll)
 
+        drive_dialog = MDDialog(
+            MDDialogHeadlineText(text="Select Drive"),
+            MDDialogContentContainer(content),
+            MDDialogButtonContainer(
+                MDButton(
+                    MDButtonText(text="Cancel"),
+                    style="text",
+                    on_release=lambda x: drive_dialog.dismiss(),
+                ),
+            ),
+        )
+        drive_dialog.open()
+
     def select_path(self, path):
         """
         Callback for MDFileManager.
-        STRICTLY for Folder Selection (User Requirement).
-        Single file selection is ignored.
+        Handles both folder selection (ingestion path) and single .dem file upload.
         """
         self.exit_file_manager()
 
-        # We only care if we are picking a folder
         if os.path.isdir(path):
             self.handle_folder_selection(path)
+        elif os.path.isfile(path) and path.lower().endswith(".dem"):
+            self._enqueue_single_demo(path)
         else:
-            self.show_error_dialog("Invalid Selection", "Please select a folder, not a file.")
+            self.show_error_dialog("Invalid Selection", "Please select a folder or a .dem file.")
+
+    def _enqueue_single_demo(self, path):
+        """Enqueue a single .dem file for ingestion."""
+        from Programma_CS2_RENAN.backend.storage.db_models import IngestionTask
+
+        db = get_db_manager()
+        try:
+            with db.get_session() as session:
+                session.add(IngestionTask(demo_path=path, is_pro=self.is_pro))
+            self.show_success_dialog("Queued", f"Demo queued for analysis: {os.path.basename(path)}")
+        except Exception as e:
+            self.show_error_dialog("Error", f"Failed to queue demo: {e}")
 
     def toggle_ai_service(self):
         """
@@ -1554,6 +1619,7 @@ class CS2AnalyzerApp(MDApp):
     def _on_viewer_parse_complete(self, data, path):
         if self.parsing_dialog:
             self.parsing_dialog.dismiss()
+            self.parsing_dialog = None
         sm = self.root.ids.screen_manager
         sm.current = "tactical_viewer"
         viewer = sm.get_screen("tactical_viewer")
@@ -1567,6 +1633,7 @@ class CS2AnalyzerApp(MDApp):
     def _on_viewer_parse_fail(self, error):
         if self.parsing_dialog:
             self.parsing_dialog.dismiss()
+            self.parsing_dialog = None
         self.show_error_dialog("Analysis Failed", str(error))
 
     def show_error_dialog(self, t, txt):

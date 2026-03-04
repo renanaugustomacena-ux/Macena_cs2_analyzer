@@ -8,10 +8,6 @@ import sys
 import time
 from datetime import datetime, timezone
 
-# --- Venv Guard ---
-if sys.prefix == sys.base_prefix:
-    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
-    sys.exit(2)
 
 import pytest
 from sqlmodel import select
@@ -23,6 +19,7 @@ from Programma_CS2_RENAN.backend.storage.db_models import IngestionTask
 _TEST_PREFIX = "/__test_auto_enqueue__/"
 
 
+@pytest.mark.integration
 class TestAutoEnqueue:
     """Test suite for automatic task creation."""
 

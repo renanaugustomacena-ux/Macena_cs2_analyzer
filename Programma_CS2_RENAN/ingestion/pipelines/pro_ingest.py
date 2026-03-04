@@ -35,11 +35,11 @@ def _map_and_archive_pro(demo_path, rounds_df, db_manager, processed_dir):
     match_stats_dict = extract_match_stats(rounds_df)
     if not match_stats_dict:
         return
-    # F6-28: player_name hardcoded as "ProPlayer". Actual player name must be extracted
-    # from demo file (requires demoparser2 integration). Placeholder until demo parsing
-    # is implemented.
+    # Derive player identity from demo filename (e.g. "s1mple_navi_vs_faze_mirage.dem")
+    # Falls back to stem of filename to avoid merging all pro stats into one record.
+    player_name = demo_path.stem.split("_")[0] if "_" in demo_path.stem else demo_path.stem
     match_stats = PlayerMatchStats(
-        player_name="ProPlayer", demo_name=demo_path.name, is_pro=True, **match_stats_dict
+        player_name=player_name, demo_name=demo_path.name, is_pro=True, **match_stats_dict
     )
     db_manager.upsert(match_stats)
     processed_dir.mkdir(parents=True, exist_ok=True)

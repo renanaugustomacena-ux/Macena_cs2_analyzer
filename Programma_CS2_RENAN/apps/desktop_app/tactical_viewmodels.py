@@ -244,7 +244,8 @@ class TacticalChronovisorViewModel(EventDispatcher):
                 else:
                     Clock.schedule_once(lambda dt: self._on_scan_error(result.error_message), 0)
             except Exception as e:
-                Clock.schedule_once(lambda dt: self._on_scan_error(f"Unexpected error: {e}"), 0)
+                error_msg = f"Unexpected error: {e}"
+                Clock.schedule_once(lambda dt: self._on_scan_error(error_msg), 0)
 
         Thread(target=_scan, daemon=True).start()
 

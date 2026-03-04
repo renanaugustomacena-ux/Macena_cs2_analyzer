@@ -91,8 +91,12 @@ def phase_main_database() -> dict:
         return results
 
     conn = sqlite3.connect(DATABASE_PATH)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=30000")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
+    except Exception:
+        conn.close()
+        raise
 
     # Order matters: delete child tables before parent tables (FK constraints)
     tables_to_clear = [
@@ -160,8 +164,10 @@ def phase_main_database() -> dict:
         results["coachstate"] = f"error: {e}"
 
     # NOTE: PlayerProfile is NOT cleared — it belongs to the user, not pro data
-    conn.commit()
-    conn.close()
+    try:
+        conn.commit()
+    finally:
+        conn.close()
     return results
 
 
@@ -175,27 +181,29 @@ def phase_hltv_metadata() -> dict:
         return results
 
     conn = sqlite3.connect(HLTV_METADATA_PATH)
-    conn.execute("PRAGMA journal_mode=WAL")
-    conn.execute("PRAGMA busy_timeout=30000")
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout=30000")
 
-    # Child tables first
-    tables = [
-        "proplayerstatcard",
-        "mapveto",
-        "hltvdownload",
-        "matchresult",
-        "proplayer",
-        "proteam",
-    ]
+        # Child tables first
+        tables = [
+            "proplayerstatcard",
+            "mapveto",
+            "hltvdownload",
+            "matchresult",
+            "proplayer",
+            "proteam",
+        ]
 
-    for table in tables:
-        count = delete_rows(conn, table)
-        results[table] = count
-        status = f"{count} rows" if count > 0 else "already empty"
-        log(f"  {table}: {status}", GREEN if count == 0 else YELLOW)
+        for table in tables:
+            count = delete_rows(conn, table)
+            results[table] = count
+            status = f"{count} rows" if count > 0 else "already empty"
+            log(f"  {table}: {status}", GREEN if count == 0 else YELLOW)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
     return results
 
 
@@ -209,23 +217,25 @@ def phase_knowledge_graph() -> dict:
         return results
 
     conn = sqlite3.connect(KNOWLEDGE_GRAPH_PATH)
-    conn.execute("PRAGMA journal_mode=WAL")
-
-    for table in ["relations", "entities"]:
-        count = delete_rows(conn, table)
-        results[table] = count
-        status = f"{count} rows" if count > 0 else "already empty"
-        log(f"  {table}: {status}", GREEN if count == 0 else YELLOW)
-
-    # Reset autoincrement sequence
     try:
-        conn.execute("DELETE FROM sqlite_sequence WHERE name IN ('relations', 'entities')")
-        log("  sqlite_sequence: reset", GREEN)
-    except sqlite3.OperationalError:
-        pass  # Table may not exist if autoincrement was never used
+        conn.execute("PRAGMA journal_mode=WAL")
 
-    conn.commit()
-    conn.close()
+        for table in ["relations", "entities"]:
+            count = delete_rows(conn, table)
+            results[table] = count
+            status = f"{count} rows" if count > 0 else "already empty"
+            log(f"  {table}: {status}", GREEN if count == 0 else YELLOW)
+
+        # Reset autoincrement sequence
+        try:
+            conn.execute("DELETE FROM sqlite_sequence WHERE name IN ('relations', 'entities')")
+            log("  sqlite_sequence: reset", GREEN)
+        except sqlite3.OperationalError:
+            pass  # Table may not exist if autoincrement was never used
+
+        conn.commit()
+    finally:
+        conn.close()
     return results
 
 
@@ -239,13 +249,15 @@ def phase_hltv_cache() -> dict:
         return results
 
     conn = sqlite3.connect(HLTV_CACHE_PATH)
-    count = delete_rows(conn, "hltv_player_cache")
-    results["hltv_player_cache"] = count
-    status = f"{count} rows" if count > 0 else "already empty"
-    log(f"  hltv_player_cache: {status}", GREEN if count == 0 else YELLOW)
+    try:
+        count = delete_rows(conn, "hltv_player_cache")
+        results["hltv_player_cache"] = count
+        status = f"{count} rows" if count > 0 else "already empty"
+        log(f"  hltv_player_cache: {status}", GREEN if count == 0 else YELLOW)
 
-    conn.commit()
-    conn.close()
+        conn.commit()
+    finally:
+        conn.close()
     return results
 
 

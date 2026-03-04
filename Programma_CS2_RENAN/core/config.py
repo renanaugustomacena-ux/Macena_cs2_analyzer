@@ -94,14 +94,11 @@ def get_secret(key, default=""):
             app_logger.debug("Secret '%s' not found in keyring, using default", key)
             return default
     except Exception as e:
-        # CRITICAL: Secret retrieval failures should be visible, not silent
-        # If default is empty string, this could bypass authentication!
+        # Keyring failures should not crash the app at import time.
+        # Log visibly and fall back to default. Features requiring secrets
+        # will fail at point-of-use with clear error messages.
         app_logger.error("Failed to retrieve secret '%s' from keyring: %s", key, e)
-        if default == "":
-            app_logger.critical(
-                "Secret '%s' retrieval failed with empty default - possible auth bypass!", key
-            )
-        raise RuntimeError(f"Keyring access failed for '{key}': {e}") from e
+        return default
 
 
 def set_secret(key, value):

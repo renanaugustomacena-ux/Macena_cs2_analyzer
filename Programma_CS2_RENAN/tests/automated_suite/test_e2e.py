@@ -12,6 +12,7 @@ from Programma_CS2_RENAN.backend.storage.database import init_database
 from Programma_CS2_RENAN.Train_ML_Cycle import run_training_cycle
 
 
+@pytest.mark.integration
 def test_e2e_user_journey():
     """
     End-to-End Test (E2E): Simulate full lifecycle using real DB data.

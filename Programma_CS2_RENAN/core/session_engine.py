@@ -230,7 +230,7 @@ def _scanner_daemon_loop():
 
             # 2. Check Play/Pause State (Global Master Switch)
             state = state_manager.get_state()
-            is_active = state.ingest_status == "Scanning"
+            is_active = state.hltv_status == "Scanning"
 
             # 3. Running Scan (Only if Active)
             current_time = time.time()
@@ -353,6 +353,7 @@ def _teacher_daemon_loop():
         except Exception as e:
             logger.exception("Teacher Error")
             state_manager.set_error("teacher", str(e))
+            state_manager.update_status("teacher", "Error", str(e))
 
         # Check stop signal more frequently than 300s sleep
         for _ in range(300):

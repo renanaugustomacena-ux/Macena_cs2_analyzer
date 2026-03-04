@@ -28,11 +28,20 @@ def find_demo(demo_path=None):
     """Find a demo file to inspect. Uses provided path or discovers first .dem in data/."""
     if demo_path:
         p = Path(demo_path)
-        if p.exists():
+        if p.is_file() and p.exists():
             return str(p)
+        # If it's a directory, search for .dem files inside
+        if p.is_dir():
+            demos = list(p.glob("*.dem"))
+            if demos:
+                print(f"[AUTO] Using: {demos[0].name} (from {p})")
+                return str(demos[0])
+            print(f"[ERROR] No .dem files found in directory: {demo_path}")
+            sys.exit(1)
         print(f"[ERROR] Demo file not found: {demo_path}")
         sys.exit(1)
 
+    # Search order: data/ → ingestion folders → PRO_DEMO_PATH from config
     data_dir = SOURCE_ROOT / "data"
     demos = list(data_dir.rglob("*.dem"))
     if not demos:
@@ -43,6 +52,17 @@ def find_demo(demo_path=None):
                 demos = list(alt.rglob("*.dem"))
                 if demos:
                     break
+
+    if not demos:
+        # Try PRO_DEMO_PATH from user settings
+        try:
+            from Programma_CS2_RENAN.core.config import PRO_DEMO_PATH
+
+            pro_dir = Path(PRO_DEMO_PATH)
+            if pro_dir.exists():
+                demos = list(pro_dir.glob("*.dem"))
+        except ImportError:
+            pass
 
     if not demos:
         print(f"[ERROR] No .dem files found under {data_dir}")

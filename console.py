@@ -396,18 +396,37 @@ def _cmd_ingest_scan(args):
     """Dry-run: scan for new demos without processing them."""
     sc = _get_sys_console()
     storage = sc.ingest_manager.storage
+    lines = [
+        "[bold]Scan Configuration:[/bold]",
+        f"  User demos: [path]{storage.ingest_dir}[/path]"
+        + (
+            " [success]\u2713[/]"
+            if storage.ingest_dir.exists()
+            else " [error]NOT FOUND[/]"
+        ),
+        f"  Pro demos:  [path]{storage.pro_ingest_dir}[/path]"
+        + (
+            " [success]\u2713[/]"
+            if storage.pro_ingest_dir.exists()
+            else " [error]NOT FOUND[/]"
+        ),
+    ]
     user_demos = storage.list_new_demos(is_pro=False)
     pro_demos = storage.list_new_demos(is_pro=True)
-    lines = [
-        f"[success]Found {len(user_demos)} user + {len(pro_demos)} pro demos[/success]",
-    ]
+    lines.append(
+        f"\n[success]Found {len(user_demos)} user + {len(pro_demos)} pro new demos[/success]"
+    )
     if user_demos:
         lines.append(
-            f"  [dim]User samples: {', '.join(d.name for d in user_demos[:5])}{'...' if len(user_demos) > 5 else ''}[/dim]"
+            f"  [dim]User: {', '.join(d.name for d in user_demos[:5])}{'...' if len(user_demos) > 5 else ''}[/dim]"
         )
     if pro_demos:
         lines.append(
-            f"  [dim]Pro samples:  {', '.join(d.name for d in pro_demos[:5])}{'...' if len(pro_demos) > 5 else ''}[/dim]"
+            f"  [dim]Pro:  {', '.join(d.name for d in pro_demos[:5])}{'...' if len(pro_demos) > 5 else ''}[/dim]"
+        )
+    if not user_demos and not pro_demos:
+        lines.append(
+            "\n[warning]No new demos found. Use 'set pro-path' or 'set demo-path' to configure paths.[/warning]"
         )
     return "\n".join(lines)
 
@@ -556,7 +575,7 @@ def _cmd_sys_baseline(args):
         tbl.add_column("Temporal", justify="right")
         tbl.add_column("Delta", justify="right")
 
-        for key in sorted(list(legacy.keys())[:8]):
+        for key in sorted(k for k in list(legacy.keys())[:12] if not k.startswith("_"))[:8]:
             l_val = legacy.get(key, {})
             t_val = temporal.get(key, {})
             l_mean = l_val.get("mean", 0) if isinstance(l_val, dict) else l_val
@@ -649,9 +668,20 @@ def _cmd_set_faceit(args):
     return "[success]Faceit API key updated.[/success]"
 
 
+_ALLOWED_CONFIG_KEYS = {
+    "PLAYER_NAME", "STEAM_ID", "STEAM_API_KEY", "FACEIT_API_KEY",
+    "DEFAULT_DEMO_PATH", "PRO_DEMO_PATH", "ACTIVE_THEME", "FONT_SIZE",
+    "FONT_TYPE", "LANGUAGE", "BACKGROUND_IMAGE", "ENABLE_SLIDESHOW",
+    "BRAIN_DATA_ROOT", "SETUP_COMPLETED", "COACH_WEIGHT_OVERRIDES",
+    "CS2_PLAYER_NAME",
+}
+
+
 def _cmd_set_config(args):
     if len(args) < 2:
         return "[error]Usage: set config <key> <value>[/error]"
+    if args[0] not in _ALLOWED_CONFIG_KEYS:
+        return f"[error]Unknown config key: {args[0]}. Allowed: {', '.join(sorted(_ALLOWED_CONFIG_KEYS))}[/error]"
     from Programma_CS2_RENAN.core.config import save_user_setting
 
     save_user_setting(args[0], args[1])
@@ -672,6 +702,30 @@ def _cmd_set_view(args):
     else:
         lines.append(f"  {settings}")
     return "\n".join(lines)
+
+
+def _cmd_set_demo_path(args):
+    if not args:
+        return "[error]Usage: set demo-path <path>[/error]"
+    path = " ".join(args)
+    if not os.path.isdir(path):
+        return f"[error]Path does not exist: {path}[/error]"
+    from Programma_CS2_RENAN.core.config import save_user_setting
+
+    save_user_setting("DEFAULT_DEMO_PATH", path)
+    return f"[success]User demo path \u2192 {path}[/success]"
+
+
+def _cmd_set_pro_path(args):
+    if not args:
+        return "[error]Usage: set pro-path <path>[/error]"
+    path = " ".join(args)
+    if not os.path.isdir(path):
+        return f"[error]Path does not exist: {path}[/error]"
+    from Programma_CS2_RENAN.core.config import save_user_setting
+
+    save_user_setting("PRO_DEMO_PATH", path)
+    return f"[success]Pro demo path \u2192 {path}[/success]"
 
 
 # --- SVC ---
@@ -777,7 +831,6 @@ def _cmd_maint_clear_queue(args):
         if count == 0:
             return "[warning]No queued tasks to purge.[/warning]"
         session.exec(delete(IngestionTask).where(IngestionTask.status == "queued"))
-        session.commit()
     return f"[success]Ingestion queue purged ({count} task(s) removed).[/success]"
 
 
@@ -822,18 +875,39 @@ def _cmd_maint_prune(args):
 # --- TOOL ---
 def _cmd_tool_demo(args):
     sub = args[0] if args else "all"
+    extra = list(args[1:]) if len(args) > 1 else []
+    # If no --demo flag provided, pass PRO_DEMO_PATH as default search directory
+    if "--demo" not in extra:
+        try:
+            from Programma_CS2_RENAN.core.config import PRO_DEMO_PATH
+
+            if PRO_DEMO_PATH and os.path.isdir(PRO_DEMO_PATH):
+                extra.extend(["--demo", PRO_DEMO_PATH])
+        except ImportError:
+            pass
     rich_con.print(f"[info]>>> Demo Inspector ({sub})[/info]")
     return _run_tool_live(
-        [sys.executable, "Programma_CS2_RENAN/tools/demo_inspector.py", sub] + args[1:], timeout=120
+        [sys.executable, "Programma_CS2_RENAN/tools/demo_inspector.py", sub] + extra, timeout=120
     )
 
 
 def _cmd_tool_user(args):
-    sub = args[0] if args else "personalize"
-    rich_con.print(f"[info]>>> User Tools ({sub})[/info]")
-    return _run_tool_live(
-        [sys.executable, "Programma_CS2_RENAN/tools/user_tools.py", sub] + args[1:], timeout=120
-    )
+    """Show user profile info (read-only, no interactive input)."""
+    from Programma_CS2_RENAN.core.config import get_all_settings
+
+    settings = get_all_settings()
+    lines = [
+        "[bold]User Profile[/bold]",
+        f"  Player:    {settings.get('CS2_PLAYER_NAME', 'Not set')}",
+        f"  Steam ID:  {settings.get('STEAM_ID', 'Not set')}",
+        f"  Demo Path: [path]{settings.get('DEFAULT_DEMO_PATH', 'Not set')}[/path]",
+        f"  Pro Path:  [path]{settings.get('PRO_DEMO_PATH', 'Not set')}[/path]",
+        f"  Brain Root:[path]{settings.get('BRAIN_DATA_ROOT', 'Not set')}[/path]",
+        f"  Language:  {settings.get('LANGUAGE', 'en')}",
+        f"  Theme:     {settings.get('ACTIVE_THEME', 'CS2')}",
+        f"  Setup:     {'[success]Complete[/success]' if settings.get('SETUP_COMPLETED') else '[warning]Incomplete[/warning]'}",
+    ]
+    return "\n".join(lines)
 
 
 def _cmd_tool_logs(args):
@@ -913,6 +987,8 @@ registry.register("set", "steam", _cmd_set_steam, "Set Steam API key")
 registry.register("set", "faceit", _cmd_set_faceit, "Set FACEIT API key")
 registry.register("set", "config", _cmd_set_config, "Set config <key> <value>")
 registry.register("set", "view", _cmd_set_view, "Show all settings")
+registry.register("set", "demo-path", _cmd_set_demo_path, "Set user demo folder path")
+registry.register("set", "pro-path", _cmd_set_pro_path, "Set pro demo folder path")
 
 # Svc
 registry.register("svc", "restart", _cmd_svc_restart, "Restart a supervised service")
@@ -1156,7 +1232,7 @@ class TUIRenderer:
             f"  [info]sys[/]    {_D}status | audit [--demo PATH] | baseline | db [-y] | vacuum | resources{_E}"
         )
         grid.add_row(
-            f"  [info]set[/]    {_D}steam <key> | faceit <key> | config <k> <v> | view{_E}"
+            f"  [info]set[/]    {_D}steam <key> | faceit <key> | config <k> <v> | view | demo-path <path> | pro-path <path>{_E}"
         )
         grid.add_row(
             f"  [info]svc[/]    {_D}restart <name> | kill-all | spawn <script> | status{_E}"
@@ -1433,6 +1509,10 @@ def build_cli_parser() -> argparse.ArgumentParser:
     st_cfg.add_argument("key", type=str)
     st_cfg.add_argument("value", type=str)
     st_sub.add_parser("view", help="View current settings")
+    st_demo_path = st_sub.add_parser("demo-path", help="Set user demo folder path")
+    st_demo_path.add_argument("path", type=str, nargs="+")
+    st_pro_path = st_sub.add_parser("pro-path", help="Set pro demo folder path")
+    st_pro_path.add_argument("path", type=str, nargs="+")
 
     # Svc
     sv_p = sub.add_parser("svc", help="Service management")
@@ -1459,6 +1539,13 @@ def build_cli_parser() -> argparse.ArgumentParser:
 
 def run_cli_mode(argv: List[str]):
     """Non-interactive command dispatch."""
+    # Handle 'help' before argparse (not registered as subparser)
+    if argv and argv[0] == "help":
+        category = argv[1] if len(argv) > 1 else None
+        result = registry.get_help(category)
+        rich_con.print(result)
+        return 0
+
     parser = build_cli_parser()
     args = parser.parse_args(argv)
 
@@ -1494,6 +1581,8 @@ def run_cli_mode(argv: List[str]):
         handler_args = [args.key]
     elif args.category == "set" and subcmd == "config":
         handler_args = [args.key, args.value]
+    elif args.category == "set" and subcmd in ("demo-path", "pro-path"):
+        handler_args = getattr(args, "path", [])
     elif args.category == "svc" and subcmd == "restart":
         handler_args = [args.service_name]
     elif args.category == "svc" and subcmd == "spawn":

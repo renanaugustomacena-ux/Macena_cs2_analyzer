@@ -1,5 +1,6 @@
 import io
-import os
+import json
+from pathlib import Path
 
 import matplotlib.colors as mcolors
 import matplotlib.pyplot as plt
@@ -18,22 +19,20 @@ class MatchVisualizer:
     """
 
     def __init__(self, output_dir="reports/assets"):
-        self.output_dir = output_dir
-        os.makedirs(self.output_dir, exist_ok=True)
+        self.output_dir = Path(output_dir)
+        self.output_dir.mkdir(parents=True, exist_ok=True)
 
         # Load map config
-        import json
-
+        _module_dir = Path(__file__).parent
         try:
-            with open(
-                os.path.join(os.path.dirname(__file__), "../data/map_tensors.json"), "r"
-            ) as f:
+            config_path = _module_dir / ".." / "data" / "map_tensors.json"
+            with open(config_path, "r", encoding="utf-8") as f:
                 self.map_config = json.load(f)
         except Exception as e:
             _logger.warning("Could not load map_tensors.json: %s", e)
             self.map_config = {}
 
-        self.assets_dir = os.path.join(os.path.dirname(__file__), "../assets/maps")
+        self.assets_dir = _module_dir / ".." / "assets" / "maps"
 
         # Fallback bounds
         self.map_bounds = {"unknown": (-4000, 4000, -4000, 4000)}
@@ -59,10 +58,10 @@ class MatchVisualizer:
 
         # Save
         filename = f"{map_name}_{title.lower().replace(' ', '_')}.png"
-        path = os.path.join(self.output_dir, filename)
-        plt.savefig(path)
+        path = self.output_dir / filename
+        plt.savefig(str(path))
         plt.close()
-        return path
+        return str(path)
 
     def plot_round_errors(self, round_id, deaths, bad_decisions, map_name):
         """
@@ -85,10 +84,10 @@ class MatchVisualizer:
         plt.title(f"Key Events - Round {round_id}")
 
         filename = f"round_{round_id}_analysis.png"
-        path = os.path.join(self.output_dir, filename)
-        plt.savefig(path)
+        path = self.output_dir / filename
+        plt.savefig(str(path))
         plt.close()
-        return path
+        return str(path)
 
     def _setup_map_plot(self, map_name):
         """Helper to set up map bounds and background image."""
@@ -97,10 +96,10 @@ class MatchVisualizer:
         # Try to load background image from config
         map_entry = self.map_config.get(map_name)
         if map_entry and "image_file" in map_entry:
-            img_path = os.path.join(self.assets_dir, map_entry["image_file"])
-            if os.path.exists(img_path):
+            img_path = self.assets_dir / map_entry["image_file"]
+            if img_path.exists():
                 try:
-                    img = plt.imread(img_path)
+                    img = plt.imread(str(img_path))
                     plt.imshow(img, extent=bounds, zorder=0, aspect="equal")
                 except Exception as e:
                     _logger.warning("Failed to load map image %s: %s", img_path, e)
@@ -188,10 +187,10 @@ class MatchVisualizer:
         ax.set_title(f"{title} — {map_name}", fontsize=14)
 
         filename = f"{map_name}_differential_{title.lower().replace(' ', '_')}.png"
-        path = os.path.join(self.output_dir, filename)
-        plt.savefig(path, dpi=150, bbox_inches="tight")
+        path = self.output_dir / filename
+        plt.savefig(str(path), dpi=150, bbox_inches="tight")
         plt.close(fig)
-        return path
+        return str(path)
 
     def _get_bounds(self, map_name):
         """Returns (x_min, x_max, y_min, y_max) for a map."""
@@ -365,10 +364,10 @@ class MatchVisualizer:
         ax.set_title(f"{title} — {map_name}", fontsize=14)
 
         filename = f"{map_name}_critical_moments.png"
-        path = os.path.join(self.output_dir, filename)
-        plt.savefig(path, dpi=150, bbox_inches="tight")
+        path = self.output_dir / filename
+        plt.savefig(str(path), dpi=150, bbox_inches="tight")
         plt.close(fig)
-        return path
+        return str(path)
 
 
 def generate_highlight_report(match_id, map_name="de_mirage"):

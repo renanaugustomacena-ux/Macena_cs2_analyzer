@@ -8,10 +8,6 @@ import json
 import sys
 from pathlib import Path
 
-# --- Venv Guard ---
-if sys.prefix == sys.base_prefix:
-    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
-    sys.exit(2)
 
 import numpy as np
 import pytest
@@ -27,6 +23,7 @@ from Programma_CS2_RENAN.backend.storage.database import get_db_manager, init_da
 from Programma_CS2_RENAN.backend.storage.db_models import TacticalKnowledge
 
 
+@pytest.mark.integration
 class TestKnowledgeEmbedder:
     """Test suite for knowledge embedder."""
 
@@ -57,6 +54,7 @@ class TestKnowledgeEmbedder:
         assert np.allclose(emb1, emb2)
 
 
+@pytest.mark.integration
 class TestKnowledgePopulator:
     """Test suite for knowledge population."""
 
@@ -119,6 +117,7 @@ class TestKnowledgePopulator:
         assert len(embedding) == populator.embedder.embedding_dim
 
 
+@pytest.mark.integration
 class TestKnowledgeRetriever:
     """Test suite for knowledge retrieval."""
 
@@ -215,6 +214,7 @@ class TestKnowledgeRetriever:
             assert knowledge.usage_count > initial_count
 
 
+@pytest.mark.integration
 class TestRAGCoaching:
     """Test suite for RAG-enhanced coaching."""
 

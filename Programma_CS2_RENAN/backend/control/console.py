@@ -236,12 +236,22 @@ class Console:
         from Programma_CS2_RENAN.core.config import get_setting
 
         if get_setting("ENABLE_HLTV_SYNC", False):
-            self.supervisor.start_service("hunter")
-            time.sleep(1)
-            svcs = self.supervisor.get_status()
-            hunter_status = svcs.get("hunter", {}).get("status", "unknown")
-            if hunter_status != "running":
-                logger.warning("Console: Hunter service status after boot: %s", hunter_status)
+            # Ensure Docker/FlareSolverr is ready before starting Hunter
+            from Programma_CS2_RENAN.ingestion.hltv.docker_manager import ensure_flaresolverr
+
+            docker_ok = ensure_flaresolverr(str(self.project_root))
+            if docker_ok:
+                self.supervisor.start_service("hunter")
+                time.sleep(1)
+                svcs = self.supervisor.get_status()
+                hunter_status = svcs.get("hunter", {}).get("status", "unknown")
+                if hunter_status != "running":
+                    logger.warning("Console: Hunter service status after boot: %s", hunter_status)
+            else:
+                logger.warning(
+                    "Console: FlareSolverr non disponibile. Hunter non avviato. "
+                    "Avvia Docker Desktop e riprova."
+                )
         else:
             logger.info("Console: HLTV sync disabled (ENABLE_HLTV_SYNC=False). Hunter skipped.")
 
@@ -260,6 +270,11 @@ class Console:
         self.supervisor.stop_service("hunter")
         self.ingest_manager.stop()
         self.ml_controller.stop_training()
+
+        # Stop FlareSolverr container when app closes
+        from Programma_CS2_RENAN.ingestion.hltv.docker_manager import stop_flaresolverr
+
+        stop_flaresolverr()
         # Brief wait for async stops to propagate
         _shutdown_clean = False
         for _ in range(10):
