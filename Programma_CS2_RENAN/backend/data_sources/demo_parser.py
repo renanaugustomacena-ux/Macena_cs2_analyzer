@@ -320,6 +320,15 @@ def parse_sequential_ticks(
         logger.warning("Demo file not found: %s", demo_path)
         return pd.DataFrame()
     try:
+        import time as _time
+
+        file_size_mb = os.path.getsize(demo_path) / (1024 * 1024)
+        logger.info(
+            "Parsing demo: %s (%.1f MB, target=%s, start_tick=%d)",
+            os.path.basename(demo_path), file_size_mb, target_player, start_tick,
+        )
+        t_start = _time.monotonic()
+
         parser = DemoParser(demo_path)
         sampling = (
             rate if rate else 1
@@ -387,9 +396,21 @@ def parse_sequential_ticks(
                 )
                 return pd.DataFrame()
 
+        t_parse = _time.monotonic()
         df = pd.DataFrame(raw_ticks)
+        parse_elapsed = t_parse - t_start
         if df.empty:
+            logger.info("Parser returned empty DataFrame in %.2fs", parse_elapsed)
             return pd.DataFrame()
+
+        mem_mb = df.memory_usage(deep=True).sum() / (1024 * 1024)
+        logger.info(
+            "Parser completed in %.2fs: %s rows, %d cols, %.1f MB RAM, %d players",
+            parse_elapsed, f"{len(df):,}", len(df.columns), mem_mb,
+            df["player_name"].nunique() if "player_name" in df.columns
+            else (df["name"].nunique() if "name" in df.columns else -1),
+        )
+
         p_col = next((c for c in ["player_name", "name"] if c in df.columns), None)
         if p_col:
             df = df.rename(columns={p_col: "player_name"})
@@ -406,7 +427,12 @@ def parse_sequential_ticks(
                 df["player_name"].astype(str).str.strip().str.lower()
                 == str(target_player).strip().lower()
             ]
+
+        logger.info(
+            "After filtering: %s rows (total parse pipeline: %.2fs)",
+            f"{len(df):,}", _time.monotonic() - t_start,
+        )
         return df
     except Exception as e:
-        logger.exception("Seq failure")
+        logger.exception("Seq failure for %s", demo_path)
         return pd.DataFrame()
