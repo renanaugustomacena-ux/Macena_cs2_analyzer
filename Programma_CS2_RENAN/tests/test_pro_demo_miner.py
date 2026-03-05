@@ -1,38 +1,40 @@
 """
-Tests for pro demo mining pipeline.
+Tests for pro stats mining pipeline.
 
-Tests knowledge extraction, pattern detection, and database integration.
+Tests knowledge extraction from ProPlayerStatCard and database integration.
 Non-destructive: only cleans up records created by each test.
 """
-
-import sys
-
 
 import pytest
 from sqlmodel import select
 
 from Programma_CS2_RENAN.backend.knowledge.pro_demo_miner import (
-    ProDemoMiner,
+    ProStatsMiner,
     auto_populate_from_pro_demos,
 )
 from Programma_CS2_RENAN.backend.storage.database import get_db_manager, get_hltv_db_manager, init_database
-from Programma_CS2_RENAN.backend.storage.db_models import HLTVDownload, TacticalKnowledge
+from Programma_CS2_RENAN.backend.storage.db_models import (
+    ProPlayer,
+    ProPlayerStatCard,
+    TacticalKnowledge,
+)
 
 _TEST_PREFIX = "/__test_pro_miner__/"
 
 
 @pytest.mark.integration
-class TestProDemoMiner:
-    """Test suite for pro demo mining."""
+class TestProStatsMiner:
+    """Test suite for pro stats mining."""
 
     @pytest.fixture(autouse=True)
     def setup_database(self):
         """Initialize DB and track created records for cleanup."""
         init_database()
-        self._created_download_ids = []
+        self._created_player_ids = []
+        self._created_card_ids = []
         self._created_knowledge_ids = []
         yield
-        # Cleanup: TacticalKnowledge in monolith, HLTVDownload in hltv_metadata.db
+        # Cleanup: TacticalKnowledge in monolith, ProPlayer/ProPlayerStatCard in hltv_metadata.db
         db = get_db_manager()
         with db.get_session() as session:
             for kid in self._created_knowledge_ids:
@@ -42,31 +44,57 @@ class TestProDemoMiner:
             session.commit()
         hltv_db = get_hltv_db_manager()
         with hltv_db.get_session() as session:
-            for did in self._created_download_ids:
-                d = session.get(HLTVDownload, did)
-                if d:
-                    session.delete(d)
+            for cid in self._created_card_ids:
+                c = session.get(ProPlayerStatCard, cid)
+                if c:
+                    session.delete(c)
+            for pid in self._created_player_ids:
+                p = session.get(ProPlayer, pid)
+                if p:
+                    session.delete(p)
             session.commit()
 
-    def _create_download(self, session, match_id, teams="Team1 vs Team2", event="Test Event"):
-        """Helper: create HLTVDownload and track ID for cleanup.
-
-        Note: _TEST_PREFIX is injected into `event` so it appears in
-        `pro_example` (format: "{team1} vs {team2} - {event}"), enabling
-        _track_knowledge() to find the records via pro_example.contains().
-        """
-        download = HLTVDownload(
-            match_id=f"{_TEST_PREFIX}{match_id}",
-            match_url=f"https://test.com/{match_id}",
-            teams=teams,
-            event=f"{_TEST_PREFIX}{event}",
-            demo_count=1,
+    def _create_player_and_card(
+        self,
+        session,
+        hltv_id,
+        nickname,
+        rating=1.10,
+        kpr=0.75,
+        dpr=0.65,
+        adr=80.0,
+        kast=70.0,
+        impact=1.05,
+        headshot_pct=50.0,
+        maps_played=100,
+    ):
+        """Helper: create ProPlayer + ProPlayerStatCard and track for cleanup."""
+        player = ProPlayer(
+            hltv_id=hltv_id,
+            nickname=f"{_TEST_PREFIX}{nickname}",
         )
-        session.add(download)
+        session.add(player)
         session.commit()
-        session.refresh(download)
-        self._created_download_ids.append(download.id)
-        return download
+        session.refresh(player)
+        self._created_player_ids.append(player.id)
+
+        card = ProPlayerStatCard(
+            player_id=hltv_id,
+            rating_2_0=rating,
+            kpr=kpr,
+            dpr=dpr,
+            adr=adr,
+            kast=kast,
+            impact=impact,
+            headshot_pct=headshot_pct,
+            maps_played=maps_played,
+            time_span="all_time",
+        )
+        session.add(card)
+        session.commit()
+        session.refresh(card)
+        self._created_card_ids.append(card.id)
+        return player, card
 
     def _track_knowledge(self):
         """Record knowledge IDs created by test for cleanup."""
@@ -83,117 +111,82 @@ class TestProDemoMiner:
 
     def test_miner_initialization(self):
         """Test miner can be initialized."""
-        miner = ProDemoMiner()
-        assert miner.MIN_SUCCESS_RATE == 0.70
-        assert miner.MIN_SAMPLE_SIZE == 5
+        miner = ProStatsMiner()
+        assert miner.db is not None
+        assert miner.populator is not None
 
-    def test_extract_map_from_match_id(self):
-        """Test map extraction from match ID."""
-        miner = ProDemoMiner()
-        assert miner._extract_map_from_match_id("faze-vs-navi-mirage-iem-2024") == "de_mirage"
-        assert miner._extract_map_from_match_id("g2-vs-vitality-dust2") == "de_dust2"
-        assert miner._extract_map_from_match_id("liquid-vs-mouz-inferno") == "de_inferno"
-        assert miner._extract_map_from_match_id("unknown-map-match") is None
+    def test_classify_archetype_star_fragger(self):
+        """Test archetype classification for star fragger."""
+        miner = ProStatsMiner()
+        card = ProPlayerStatCard(
+            player_id=99999,
+            rating_2_0=1.25,
+            impact=1.20,
+            kast=72.0,
+            headshot_pct=55.0,
+            opening_duel_win_pct=50.0,
+        )
+        assert miner._classify_archetype(card) == "Star Fragger"
 
-    def test_mine_single_demo(self):
-        """Test mining knowledge from a single demo."""
-        db = get_hltv_db_manager()
-        with db.get_session() as session:
-            download = self._create_download(
+    def test_classify_archetype_support(self):
+        """Test archetype classification for support anchor."""
+        miner = ProStatsMiner()
+        card = ProPlayerStatCard(
+            player_id=99999,
+            rating_2_0=1.00,
+            impact=0.95,
+            kast=75.0,
+            headshot_pct=50.0,
+            opening_duel_win_pct=45.0,
+        )
+        assert miner._classify_archetype(card) == "Support Anchor"
+
+    def test_generate_player_knowledge(self):
+        """Test knowledge generation from a stat card."""
+        miner = ProStatsMiner()
+        card = ProPlayerStatCard(
+            player_id=99999,
+            rating_2_0=1.15,
+            kpr=0.80,
+            dpr=0.62,
+            adr=85.0,
+            kast=72.0,
+            impact=1.10,
+            headshot_pct=52.0,
+            maps_played=200,
+            opening_kill_ratio=1.2,
+            opening_duel_win_pct=54.0,
+            clutch_win_count=65,
+            multikill_round_pct=12.5,
+            time_span="all_time",
+        )
+
+        entries = miner._generate_player_knowledge(card, f"{_TEST_PREFIX}TestPlayer")
+
+        # Should generate: baseline + opening duels + clutch/multikill = 3 entries
+        assert len(entries) == 3, f"Expected 3 knowledge entries, got {len(entries)}"
+        assert any(e["category"] == "pro_baseline" for e in entries)
+        assert any(e["category"] == "opening_duels" for e in entries)
+        assert any(e["category"] == "clutch_performance" for e in entries)
+
+    def test_mine_single_player_integration(self):
+        """Test mining knowledge from a real DB record."""
+        hltv_db = get_hltv_db_manager()
+        with hltv_db.get_session() as session:
+            self._create_player_and_card(
                 session,
-                match_id="faze-vs-navi-mirage-iem-katowice-2024",
-                teams="FaZe vs NAVI",
-                event="IEM Katowice 2024",
+                hltv_id=99901,
+                nickname="test_miner_player",
+                rating=1.20,
+                impact=1.15,
             )
 
-        miner = ProDemoMiner()
-        count = miner.mine_single_demo(download)
+        miner = ProStatsMiner()
+        count = miner.mine_all_pro_stats(limit=50)
         self._track_knowledge()
 
-        # mine_single_demo: 2 map entries (positioning + utility) + 1 team entry = 3
-        assert count == 3, f"Expected 3 knowledge entries, got {count}"
-
-        monolith_db = get_db_manager()
-        with monolith_db.get_session() as session:
-            knowledge = session.exec(select(TacticalKnowledge)).all()
-            test_knowledge = [k for k in knowledge if _TEST_PREFIX in (k.pro_example or "")]
-            assert len(test_knowledge) == 3
-            assert any("FaZe vs NAVI" in k.pro_example for k in test_knowledge)
-
-    def test_generate_map_knowledge(self):
-        """Test map-specific knowledge generation."""
-        miner = ProDemoMiner()
-        download = HLTVDownload(
-            match_id=f"{_TEST_PREFIX}test-map-match",
-            match_url="https://test.com",
-            teams="Team1 vs Team2",
-            event="Test Event",
-            demo_count=1,
-        )
-
-        knowledge = miner._generate_map_knowledge(download, "de_mirage")
-        assert (
-            len(knowledge) == 2
-        ), f"Expected 2 map entries (positioning + utility), got {len(knowledge)}"
-        assert all(k["map_name"] == "de_mirage" for k in knowledge)
-        assert any(k["category"] == "positioning" for k in knowledge)
-        assert any(k["category"] == "utility" for k in knowledge)
-
-    def test_generate_team_knowledge(self):
-        """Test team-specific knowledge generation."""
-        miner = ProDemoMiner()
-        download = HLTVDownload(
-            match_id=f"{_TEST_PREFIX}test-team-match",
-            match_url="https://test.com",
-            teams="Team1 vs Team2",
-            event="Test Event",
-            demo_count=1,
-        )
-
-        knowledge = miner._generate_team_knowledge(download)
-        assert len(knowledge) == 1, f"Expected 1 team entry (economy), got {len(knowledge)}"
-        assert knowledge[0]["category"] == "economy"
-
-    def test_auto_populate_function(self):
-        """Test convenience auto-populate function."""
-        db = get_hltv_db_manager()
-        with db.get_session() as session:
-            for i in range(3):
-                self._create_download(
-                    session,
-                    match_id=f"match-{i}-mirage",
-                    teams=f"Team{i}A vs Team{i}B",
-                    event=f"Event {i}",
-                )
-
-        count = auto_populate_from_pro_demos(limit=3)
-        self._track_knowledge()
-
-        # 3 downloads × 3 entries each = 9
-        assert count == 9, f"Expected 9 entries from 3 downloads, got {count}"
-
-    def test_duplicate_mining_is_idempotent(self):
-        """Mining the same demo twice should not create duplicate entries."""
-        db = get_hltv_db_manager()
-        with db.get_session() as session:
-            download = self._create_download(
-                session, match_id="dedup-test-mirage", teams="Alpha vs Beta"
-            )
-
-        miner = ProDemoMiner()
-        count1 = miner.mine_single_demo(download)
-        self._track_knowledge()
-        count2 = miner.mine_single_demo(download)
-        self._track_knowledge()
-
-        monolith_db = get_db_manager()
-        with monolith_db.get_session() as session:
-            all_k = session.exec(select(TacticalKnowledge)).all()
-            test_k = [k for k in all_k if _TEST_PREFIX in (k.pro_example or "")]
-
-        # Second mining may add more or same — but count should be trackable
-        assert count1 > 0, "First mine should produce entries"
-        assert len(test_k) >= count1, "Knowledge records should persist"
+        # At least 1 entry for our test player (baseline)
+        assert count >= 1, f"Expected at least 1 knowledge entry, got {count}"
 
 
 if __name__ == "__main__":

@@ -215,7 +215,7 @@ class BackendValidator(BaseValidator):
         )
 
         # F8-16: Model Zoo uses torch.randn() inputs — smoke tests (does model load/run?),
-        # not correctness tests. Consistent with brain_verification design (F8-04).
+        # not correctness tests. See tests/test_deployment_readiness.py for deeper checks.
         if model is not None:
             x = torch.randn(1, 1, METADATA_DIM)
             with torch.no_grad():

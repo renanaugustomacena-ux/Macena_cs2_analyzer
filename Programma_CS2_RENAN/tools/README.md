@@ -18,7 +18,6 @@ Validation and diagnostic tools forming a 4-level hierarchy for comprehensive sy
   - NEUROLOGY (models), CARDIOLOGY (data), ICU (services)
   - SECURITY (secrets, injection), IMAGING (architecture)
 - `backend_validator.py` — Backend health checks (40 checks)
-- `brain_verify.py` — Brain model verification (13 learning rules)
 - `ui_diagnostic.py` — UI screen completeness diagnostic
 
 ## Specialized Tools
@@ -28,7 +27,6 @@ Validation and diagnostic tools forming a 4-level hierarchy for comprehensive sy
 - `dead_code_detector.py` — Dead code detection
 - `dev_health.py` — Development health checks
 - `sync_integrity_manifest.py` — RASP integrity manifest generation
-- `brain_verification/` — Model verification scripts
 
 ## Usage
 

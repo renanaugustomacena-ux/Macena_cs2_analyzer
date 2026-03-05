@@ -1,48 +1,53 @@
 > **[English](README.md)** | **[Italiano](README_IT.md)** | **[Português](README_PT.md)**
 
-# Ferramentas de Projeto no Nível Raiz
+# Ferramentas de Projeto no Nivel Raiz
 
-Ferramentas de projeto no nível raiz para validação, diagnóstico e manutenção.
+Ferramentas de projeto no nivel raiz para validacao, diagnostico e manutencao.
 
-## Ferramentas de Validação
+## Ferramentas de Validacao
 
-- `headless_validator.py` — Gate de validação headless (245+ verificacoes em 23 fases, obrigatorio pre-commit)
-- `verify_all_safe.py` — Verificação de segurança em todos os módulos
-- `portability_test.py` — Verificações de portabilidade multiplataforma
-- `run_console_boot.py`, `verify_main_boot.py` — Ferramentas de verificação de boot
+- `headless_validator.py` — Gate de validacao headless (245+ verificacoes em 23 fases, obrigatorio pre-commit)
+- `dead_code_detector.py` — Detecta modulos orfaos, definicoes duplicadas, imports obsoletos
+- `verify_all_safe.py` — Verificacao de seguranca em todos os modulos
+- `portability_test.py` — Verificacoes de portabilidade multiplataforma
+- `Feature_Audit.py` — Auditoria de alinhamento de features (parser vs pipeline ML)
+- `run_console_boot.py`, `verify_main_boot.py` — Ferramentas de verificacao de boot
 
 ## Build e Deployment
 
-- `build_pipeline.py` — Orquestração do pipeline de build
-- `generate_manifest.py` — Gera manifesto de integridade para RASP
+- `build_pipeline.py` — Orquestracao do pipeline de build (sanitize, test, manifest, compile, audit)
+- `audit_binaries.py` — Validacao de integridade de binarios pos-build (SHA-256)
 
 ## Ferramentas de Banco de Dados
 
-- `db_health_diagnostic.py` — Diagnóstico de saúde do banco de dados
-- `migrate_db.py` — Ferramenta de migração de banco de dados
-- `reset_pro_data.py` — Reset de dados de jogadores profissionais
+- `db_health_diagnostic.py` — Diagnostico de saude do banco de dados (10 secoes)
+- `migrate_db.py` — Ferramenta de migracao de banco de dados (backward compatibility)
+- `reset_pro_data.py` — Reset de dados de jogadores profissionais (multi-fase, idempotente)
 
-## Manutenção do Projeto
+## Manutencao do Projeto
 
-- `Feature_Audit.py` — Auditoria de completude de funcionalidades
-- `Sanitize_Project.py` — Sanitização do projeto (remove arquivos órfãos, diretórios fantasma)
+- `dev_health.py` — Orquestrador de saude de desenvolvimento (executa multiplas ferramentas)
+- `Sanitize_Project.py` — Sanitizacao do projeto (remove configuracoes do usuario, DB local, logs)
 
 ## Uso
 
 ```bash
-# Validação headless (executar antes de cada commit)
+# Validacao headless (executar antes de cada commit)
 python tools/headless_validator.py
 
-# Verificação de saúde do banco de dados
+# Verificacao de saude do desenvolvimento
+python tools/dev_health.py
+
+# Verificacao de saude do banco de dados
 python tools/db_health_diagnostic.py
 
-# Gera manifesto de integridade
-python tools/generate_manifest.py
-
-# Verificação de portabilidade
+# Verificacao de portabilidade
 python tools/portability_test.py
+
+# Deteccao de codigo morto
+python tools/dead_code_detector.py
 ```
 
 ## Notas
 
-Todas as ferramentas devem ser executadas a partir do diretório raiz do projeto.
+Todas as ferramentas devem ser executadas a partir do diretorio raiz do projeto.

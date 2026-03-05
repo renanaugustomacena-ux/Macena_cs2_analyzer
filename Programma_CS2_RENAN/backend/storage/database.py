@@ -18,7 +18,6 @@ from .db_models import (
     CoachState,
     Ext_PlayerPlaystyle,
     Ext_TeamRoundStats,
-    HLTVDownload,
     IngestionTask,
     MapVeto,
     MatchResult,
@@ -61,7 +60,6 @@ _MONOLITH_TABLES = [
 # Separated from the monolith to eliminate write lock contention between
 # the HLTV background service (separate process) and session_engine daemons.
 _HLTV_TABLES = [
-    HLTVDownload.__table__,
     ProPlayer.__table__,
     ProPlayerStatCard.__table__,
     ProTeam.__table__,

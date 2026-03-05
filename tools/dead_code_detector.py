@@ -22,7 +22,9 @@ SOURCE_DIR = project_root / "Programma_CS2_RENAN"
 TOOLS_DIR = project_root / "tools"
 INNER_TOOLS_DIR = SOURCE_DIR / "tools"
 ENTRY_POINTS = {
-    project_root / "main.py",
+    SOURCE_DIR / "main.py",
+    project_root / "goliath.py",
+    project_root / "console.py",
 }
 # Add all tools to entry points (project-level and inner)
 for tool in TOOLS_DIR.glob("*.py"):
@@ -32,7 +34,6 @@ for tool in INNER_TOOLS_DIR.glob("*.py"):
 # Standalone entry-point scripts (run directly, never imported)
 _STANDALONE_SCRIPTS = [
     SOURCE_DIR / "run_worker.py",
-    SOURCE_DIR / "fetch_hltv_stats.py",
     SOURCE_DIR / "hltv_sync_service.py",
     SOURCE_DIR / "apps" / "spatial_debugger.py",
     SOURCE_DIR / "backend" / "data_sources" / "hltv_scraper.py",

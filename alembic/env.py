@@ -26,7 +26,6 @@ from sqlmodel import SQLModel
 from Programma_CS2_RENAN.backend.storage.db_models import (
     CoachingInsight,
     CoachState,
-    HLTVDownload,
     IngestionTask,
     PlayerMatchStats,
     PlayerProfile,

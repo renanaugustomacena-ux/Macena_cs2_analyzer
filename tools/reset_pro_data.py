@@ -52,7 +52,6 @@ MODEL_DIRS = [
     os.path.join(BASE_DIR, "models", "global"),
     os.path.join(BASE_DIR, "models", "user"),
     os.path.join(BASE_DIR, "models", "master_user"),
-    os.path.join(BASE_DIR, "backend", "nn", "models", "nn"),
 ]
 
 # ANSI colors for terminal output
@@ -111,7 +110,6 @@ def phase_main_database() -> dict:
         "mapveto",
         "proplayerstatcard",
         "playermatchstats",
-        "hltvdownload",
         "matchresult",
         "ingestiontask",
         "ext_teamroundstats",
@@ -189,7 +187,6 @@ def phase_hltv_metadata() -> dict:
         tables = [
             "proplayerstatcard",
             "mapveto",
-            "hltvdownload",
             "matchresult",
             "proplayer",
             "proteam",

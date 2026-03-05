@@ -9,7 +9,6 @@ Usage:
   python user_tools.py personalize
   python user_tools.py customize
   python user_tools.py manual-entry
-  python user_tools.py seed-pro
   python user_tools.py weights
   python user_tools.py heartbeat
 """
@@ -161,24 +160,6 @@ def cmd_manual_entry(args):
 
 
 # =============================================================================
-# seed-pro — Seed database with pro player data
-# =============================================================================
-
-
-def cmd_seed_pro(args):
-    """DISABLED — F8-01: Hardcoded synthetic pro stats violate CLAUDE.md anti-fabrication rule.
-
-    The fabricated stats (e.g. s1mple rating=1.30, ADR=87.5) contaminate the pro baseline
-    used by the coaching system, producing inaccurate advice based on invented numbers.
-    Use the HLTV ingestion pipeline for real pro data instead.
-    """
-    # F8-01: Refuse to inject fabricated pro stats into the database.
-    print("\n[ERROR] seed-pro is disabled.")
-    print("        Hardcoded synthetic stats violate CLAUDE.md anti-fabrication rule.")
-    print("        Use the HLTV ingestion pipeline for real pro data.\n")
-
-
-# =============================================================================
 # weights — ML feature weight overrides
 # =============================================================================
 
@@ -312,7 +293,6 @@ def main():
     subparsers.add_parser("personalize", help="Set player name, Steam ID, API keys")
     subparsers.add_parser("customize", help="Set language, theme, font preferences")
     subparsers.add_parser("manual-entry", help="Manually enter pro player stats")
-    subparsers.add_parser("seed-pro", help="Seed database with sample pro data")
     subparsers.add_parser("weights", help="View/set ML feature weight overrides")
     subparsers.add_parser("heartbeat", help="System health telemetry")
 
@@ -325,7 +305,6 @@ def main():
         "personalize": cmd_personalize,
         "customize": cmd_customize,
         "manual-entry": cmd_manual_entry,
-        "seed-pro": cmd_seed_pro,
         "weights": cmd_weights,
         "heartbeat": cmd_heartbeat,
     }

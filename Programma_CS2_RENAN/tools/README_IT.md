@@ -18,7 +18,6 @@ Strumenti di validazione e diagnostica che formano una gerarchia a 4 livelli per
   - NEUROLOGY (modelli), CARDIOLOGY (dati), ICU (servizi)
   - SECURITY (secrets, injection), IMAGING (architettura)
 - `backend_validator.py` — Controlli salute backend (40 controlli)
-- `brain_verify.py` — Verifica modello brain (13 regole di apprendimento)
 - `ui_diagnostic.py` — Diagnostica completezza schermate UI
 
 ## Strumenti Specializzati
@@ -28,7 +27,6 @@ Strumenti di validazione e diagnostica che formano una gerarchia a 4 livelli per
 - `dead_code_detector.py` — Rilevazione codice morto
 - `dev_health.py` — Controlli salute sviluppo
 - `sync_integrity_manifest.py` — Generazione manifest integrità RASP
-- `brain_verification/` — Script verifica modelli
 
 ## Utilizzo
 

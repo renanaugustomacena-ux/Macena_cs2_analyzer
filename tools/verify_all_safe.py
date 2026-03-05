@@ -68,11 +68,7 @@ def is_safe_to_run(path_obj):
 
     # 3. Skip Interactive or Long Running
     if name in [
-        "integrity_checksum.py",
-        "live_monitor.py",
-        "monitor_app.py",
-        "run_full_training_cycle.py",
-        "assign_splits.py",
+        "run_console_boot.py",
     ]:
         return False
 
@@ -81,7 +77,7 @@ def is_safe_to_run(path_obj):
 
 def verify_all_dynamic():
     print("=" * 80)
-    print("      MACENA CS2 - DYNAMIC TOTAL SYSTEM VALIDATION (70+ TOOLS)")
+    print("      MACENA CS2 - DYNAMIC TOTAL SYSTEM VALIDATION")
     print("=" * 80)
 
     tools_dir = _project_root / "tools"
@@ -94,9 +90,6 @@ def verify_all_dynamic():
         # Skip the verifier itself to avoid recursion loop if called weirdly
         if tool_path.name == "verify_all_safe.py":
             continue
-        if tool_path.name == "upgrade_tool_suite.py":
-            continue
-
         if is_safe_to_run(tool_path):
             safe_tools.append(tool_path)
         else:

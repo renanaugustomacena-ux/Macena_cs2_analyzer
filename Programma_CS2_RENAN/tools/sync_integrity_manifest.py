@@ -23,7 +23,6 @@ _HASH_EXCLUDES = {
     "tools",
     "tests",
     "__pycache__",
-    "brain_verification",
     "PHOTO_GUI",
     "data",
     "models",

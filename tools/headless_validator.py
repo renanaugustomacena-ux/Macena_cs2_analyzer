@@ -396,10 +396,21 @@ DATASOURCE_IMPORTS = [
     "Programma_CS2_RENAN.backend.data_sources.trade_kill_detector",
     "Programma_CS2_RENAN.backend.data_sources.steam_api",
     "Programma_CS2_RENAN.backend.data_sources.steam_demo_finder",
-    # hltv_metadata requires 'playwright' (optional) — skip on envs without it
-    # "Programma_CS2_RENAN.backend.data_sources.hltv_metadata",
+    "Programma_CS2_RENAN.backend.data_sources.hltv_scraper",
     "Programma_CS2_RENAN.backend.data_sources.faceit_api",
     "Programma_CS2_RENAN.backend.data_sources.faceit_integration",
+    # HLTV package (restructured from hltv_metadata.py)
+    "Programma_CS2_RENAN.backend.data_sources.hltv",
+    "Programma_CS2_RENAN.backend.data_sources.hltv.selectors",
+    "Programma_CS2_RENAN.backend.data_sources.hltv.rate_limit",
+    "Programma_CS2_RENAN.backend.data_sources.hltv.flaresolverr_client",
+    "Programma_CS2_RENAN.backend.data_sources.hltv.docker_manager",
+    "Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher",
+    "Programma_CS2_RENAN.backend.data_sources.hltv.cache.proxy",
+    "Programma_CS2_RENAN.backend.data_sources.hltv.collectors.players",
+    # hltv.browser.manager and hltv.hltv_api_service require 'playwright' (optional)
+    # "Programma_CS2_RENAN.backend.data_sources.hltv.browser.manager",
+    # "Programma_CS2_RENAN.backend.data_sources.hltv.hltv_api_service",
 ]
 
 for mod in DATASOURCE_IMPORTS:
@@ -431,7 +442,6 @@ print("\n[Phase 3k] Ingestion Pipelines")
 INGESTION_IMPORTS = [
     "Programma_CS2_RENAN.ingestion.demo_loader",
     "Programma_CS2_RENAN.ingestion.steam_locator",
-    "Programma_CS2_RENAN.ingestion.pipelines.pro_ingest",
     "Programma_CS2_RENAN.ingestion.pipelines.user_ingest",
     "Programma_CS2_RENAN.ingestion.pipelines.json_tournament_ingestor",
     "Programma_CS2_RENAN.ingestion.registry.registry",
@@ -469,7 +479,6 @@ EXPECTED_TABLES = [
     "ext_playerplaystyle",
     "coachinginsight",
     "ingestiontask",
-    "hltvdownload",
     "tacticalknowledge",
     "coachstate",
     "servicenotification",
@@ -2137,7 +2146,7 @@ print("\n[Phase 19] Circuit Breaker & HLTV Resilience")
 
 def verify_circuit_breaker_state_machine():
     """CircuitBreaker opens after MAX_FAILURES consecutive failures."""
-    from Programma_CS2_RENAN.ingestion.hltv.hltv_api_service import _CircuitBreaker
+    from Programma_CS2_RENAN.backend.data_sources.hltv.hltv_api_service import _CircuitBreaker
 
     cb = _CircuitBreaker()
     for _ in range(9):
@@ -2151,7 +2160,7 @@ def verify_circuit_breaker_state_machine():
 
 
 def verify_circuit_breaker_reset_on_success():
-    from Programma_CS2_RENAN.ingestion.hltv.hltv_api_service import _CircuitBreaker
+    from Programma_CS2_RENAN.backend.data_sources.hltv.hltv_api_service import _CircuitBreaker
 
     cb = _CircuitBreaker()
     for _ in range(10):
@@ -2165,7 +2174,7 @@ def verify_circuit_breaker_reset_on_success():
 
 
 def verify_circuit_breaker_constants():
-    from Programma_CS2_RENAN.ingestion.hltv.hltv_api_service import _CircuitBreaker
+    from Programma_CS2_RENAN.backend.data_sources.hltv.hltv_api_service import _CircuitBreaker
 
     if _CircuitBreaker.MAX_FAILURES != 10:
         raise AssertionError(

@@ -265,19 +265,6 @@ class IngestionTask(SQLModel, table=True):
     updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
 
 
-class HLTVDownload(SQLModel, table=True):
-    """Track HLTV matches that have been downloaded."""
-
-    __table_args__ = {"extend_existing": True}
-    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    id: Optional[int] = Field(default=None, primary_key=True)
-    match_id: str = Field(index=True, unique=True)
-    match_url: str
-    teams: str  # "Team1 vs Team2"
-    event: str
-    downloaded_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    demo_count: int = Field(default=0)
-
 
 class TacticalKnowledge(SQLModel, table=True):
     """RAG Knowledge Base for tactical coaching insights."""

@@ -237,7 +237,7 @@ class Console:
 
         if get_setting("ENABLE_HLTV_SYNC", False):
             # Ensure Docker/FlareSolverr is ready before starting Hunter
-            from Programma_CS2_RENAN.ingestion.hltv.docker_manager import ensure_flaresolverr
+            from Programma_CS2_RENAN.backend.data_sources.hltv.docker_manager import ensure_flaresolverr
 
             docker_ok = ensure_flaresolverr(str(self.project_root))
             if docker_ok:
@@ -272,7 +272,7 @@ class Console:
         self.ml_controller.stop_training()
 
         # Stop FlareSolverr container when app closes
-        from Programma_CS2_RENAN.ingestion.hltv.docker_manager import stop_flaresolverr
+        from Programma_CS2_RENAN.backend.data_sources.hltv.docker_manager import stop_flaresolverr
 
         stop_flaresolverr()
         # Brief wait for async stops to propagate

@@ -764,18 +764,29 @@ class CoachTrainingManager:
         try:
             from Programma_CS2_RENAN.backend.nn.config import get_device
             from Programma_CS2_RENAN.backend.nn.rap_coach.model import RAPCoachModel
-            from Programma_CS2_RENAN.backend.nn.persistence import load_nn
+            from Programma_CS2_RENAN.backend.nn.persistence import (
+                StaleCheckpointError,
+                load_nn,
+            )
             from Programma_CS2_RENAN.backend.processing.state_reconstructor import (
                 RAPStateReconstructor,
             )
 
             device = get_device()
 
-            # CRITICAL FIX: Load the Actual Trained Brain
-            # If we are mature (200 demos), we MUST have a model.
             model = RAPCoachModel()
-            # load_nn modifies in-place, handling file existence internally.
-            load_nn("rap_coach", model)
+            try:
+                load_nn("rap_coach", model)
+            except StaleCheckpointError:
+                app_logger.warning(
+                    "RAP checkpoint stale (architecture changed). "
+                    "Overlay unavailable until model is retrained."
+                )
+                return {
+                    "status": "error",
+                    "message": "Model checkpoint outdated — retraining required.",
+                    "overlay_results": {},
+                }
             model.to(device)
 
             model.eval()  # Ensure eval mode

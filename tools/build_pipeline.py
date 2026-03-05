@@ -184,7 +184,8 @@ class IndustrialBuildPipeline:
 
         # 3. Integrity Manifest
         if not self.run_stage(
-            "Generate Integrity Manifest", f'"{sys.executable}" tools/generate_manifest.py'
+            "Generate Integrity Manifest",
+            f'"{sys.executable}" Programma_CS2_RENAN/tools/sync_integrity_manifest.py',
         ):
             return False
 

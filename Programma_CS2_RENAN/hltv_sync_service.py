@@ -1,14 +1,21 @@
+"""
+HLTV Sync Service — Background daemon for pro player statistics scraping.
+
+Periodically fetches player statistics (text data) from HLTV.org player pages
+and saves to ProPlayer + ProPlayerStatCard in hltv_metadata.db.
+
+This service does NOT download demo files — it only reads web pages
+and extracts statistical data (Rating 2.0, K/D, ADR, KAST, HS%, etc.).
+"""
+
 import os
-import signal
 import subprocess
 import sys
 import time
 from pathlib import Path
 
-# Use the automated discovery fetcher we just refined
-from Programma_CS2_RENAN.fetch_hltv_stats import HLTVStatFetcher
-from Programma_CS2_RENAN.ingestion.hltv.flaresolverr_client import FlareSolverrClient
-from Programma_CS2_RENAN.ingestion.hltv_orchestrator import HLTVOrchestrator
+from Programma_CS2_RENAN.backend.data_sources.hltv.flaresolverr_client import FlareSolverrClient
+from Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher import HLTVStatFetcher
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.hltv_sync_service")
@@ -33,16 +40,15 @@ def _dormant_sleep(seconds: int) -> None:
 def run_sync_loop():
     """
     Main background loop.
-    Coordinates match discovery (Orchestrator) and player card scraping (Fetcher).
-    Uses FlareSolverr (Docker) to bypass Cloudflare protection on HLTV.
+    Fetches pro player statistics from HLTV.org player pages.
+    Uses FlareSolverr (Docker) to bypass Cloudflare protection.
     """
     logger.info("HLTV Sync Service Loop started.")
 
-    # Import state_manager early for status updates
     from Programma_CS2_RENAN.backend.storage.state_manager import state_manager
 
     # --- Pre-flight: Auto-start FlareSolverr Docker container ---
-    from Programma_CS2_RENAN.ingestion.hltv.docker_manager import ensure_flaresolverr
+    from Programma_CS2_RENAN.backend.data_sources.hltv.docker_manager import ensure_flaresolverr
 
     project_root = str(Path(__file__).resolve().parent.parent)
     if not ensure_flaresolverr(project_root):
@@ -94,7 +100,6 @@ def run_sync_loop():
     # Create persistent session for cookie reuse across requests
     solver.create_session()
 
-    orchestrator = HLTVOrchestrator()
     fetcher = HLTVStatFetcher()
 
     if STOP_SIGNAL.exists():
@@ -103,24 +108,27 @@ def run_sync_loop():
     while not STOP_SIGNAL.exists():
         try:
             state_manager.update_status(
-                "hunter", "Running", f"Discovery cycle active at {time.ctime()}"
+                "hunter", "Running", f"Stats sync cycle active at {time.ctime()}"
             )
 
-            # 1. Sync Matches (Recent pro demos)
-            logger.info("Starting match discovery cycle...")
-            orchestrator.run_sync_cycle(limit=10)
+            # 1. Discover Top 50 players
+            logger.info("Discovering Top 50 players...")
+            player_urls = fetcher.fetch_top_players()
 
-            # 2. Sync Player Cards (Top 50 automatically)
-            logger.info("Starting player card synchronization (Top 50)...")
-            fetcher.fetch_top_players()
+            # 2. Deep crawl each player's stats
+            synced = 0
+            for url in player_urls:
+                if STOP_SIGNAL.exists():
+                    break
+                if fetcher.fetch_and_save_player(url):
+                    synced += 1
 
-            # 3. Wait (Polite long-tail delay between full cycles)
-            logger.info("Cycle complete. Sleeping for 1 hour...")
+            logger.info("Cycle complete: %s players synced. Sleeping for 1 hour...", synced)
             _dormant_sleep(3600)
 
         except Exception as e:
             logger.error("Sync Loop Error: %s", e)
-            time.sleep(60)  # Wait a minute before retry on crash
+            time.sleep(60)
 
     # Cleanup persistent session
     solver.destroy_session()
@@ -139,7 +147,6 @@ def start_detached():
     python_exe = sys.executable
     main_script = SCRIPT_DIR / "main.py"
 
-    # Launch main.py with --hltv-service flag to trigger run_sync_loop
     process = subprocess.Popen(
         [python_exe, str(main_script), "--hltv-service"],
         creationflags=(
@@ -164,13 +171,10 @@ def stop_service():
     if PID_FILE.exists():
         try:
             pid = int(PID_FILE.read_text().strip())
-            # On Windows, we might need a harder kill if it doesn't stop politely
-            # but for now we rely on the loop checking the STOP_SIGNAL.
             logger.info("Background process %s will stop at next cycle check.", pid)
         except Exception as e:
             logger.warning("Failed to read PID file during stop: %s", e)
 
 
 if __name__ == "__main__":
-    # If run directly without flags, just run in-process (debug mode)
     run_sync_loop()

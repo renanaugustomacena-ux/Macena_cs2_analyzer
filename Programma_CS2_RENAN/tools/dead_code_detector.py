@@ -18,7 +18,7 @@ from _infra import SOURCE_ROOT, BaseValidator, Severity
 
 # Directories excluded from orphan detection (standalone entry points, tools, tests)
 _EXCLUDED_DIRS = {
-    "tools", "tests", "__pycache__", "brain_verification",
+    "tools", "tests", "__pycache__",
     "apps",   # F8-18: KivyMD screens loaded dynamically by MDScreenManager, not via Python import
 }
 _EXCLUDED_FILES = {"__init__.py", "conftest.py", "setup.py"}
