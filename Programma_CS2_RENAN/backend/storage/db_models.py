@@ -101,7 +101,7 @@ class PlayerMatchStats(SQLModel, table=True):
     sample_weight: float = Field(default=1.0)
     is_pro: bool = Field(default=False)
     rating: float = Field(default=0.0)
-    pro_player_id: Optional[int] = Field(default=None, foreign_key="proplayer.hltv_id", index=True)
+    pro_player_id: Optional[int] = Field(default=None, index=True)  # Logical ref to ProPlayer.hltv_id (separate DB — no FK)
 
 
 class PlayerTickState(SQLModel, table=True):

@@ -1,53 +1,40 @@
-# Scraping de Dados Profissionais HLTV
+# Estatisticas de Jogadores Profissionais HLTV
 
 > **[English](README.md)** | **[Italiano](README_IT.md)** | **[Português](README_PT.md)**
 
-## Visão Geral
+## Visao Geral
 
-Infraestrutura de web scraping para estatísticas de jogadores profissionais CS2 e resultados de partidas de HLTV.org usando automação de navegador Playwright. Inclui rate limiting, cache de respostas e gerenciamento robusto de seletores CSS.
+Servico em background que coleta **estatisticas de jogadores profissionais** (apenas dados textuais) do HLTV.org via FlareSolverr (Docker). Os dados sao armazenados em um banco isolado `hltv_metadata.db`, separado do pipeline principal de ingestao de demos.
 
 ## Componentes Principais
 
-### `hltv_api_service.py`
-- **`HLTVApiService`** — Serviço de scraping principal com automação de navegador Playwright
-- Busca estatísticas de jogadores, resultados de partidas, composições de times, dados de torneios
-- Tratamento de erros com lógica de retry e proteção de timeout
+### `stat_fetcher.py`
+- **`HLTVStatFetcher`** — Servico de scraping principal via FlareSolverr + BeautifulSoup
+- Busca estatisticas: Rating 2.0, KPR, DPR, ADR, KAST, HS%, Impact
+- Deep-crawl de sub-paginas: Clutches, Multikills, Historico de carreira
+- Salva em `ProPlayer` + `ProPlayerStatCard` no `hltv_metadata.db`
+
+### `flaresolverr_client.py`
+- **`FlareSolverrClient`** — Cliente REST para container Docker FlareSolverr local
+- Resolve challenges Cloudflare automaticamente
+- Suporte a sessoes persistentes para reuso de cookies
 
 ### `rate_limit.py`
-- **`RateLimiter`** — Rate limiting de requisições para respeitar carga do servidor HLTV
-- Limiar configurável de requisições-por-minuto
-- Implementação de algoritmo token bucket
+- **`RateLimiter`** — Rate limiting multi-nivel (micro/standard/heavy/backoff)
+- Delays conservadores: 4-8s padrao, 10-20s pesado, 45-90s backoff
+
+### `docker_manager.py`
+- Auto-inicia container Docker FlareSolverr se nao estiver rodando
+- Polling de health-check com timeout configuravel
 
 ### `selectors.py`
-- **`HLTVURLBuilder`** — Construção de URL para páginas HLTV (estatísticas de jogadores, detalhes de partida, páginas de times)
-- **`PlayerStatsSelectors`** — Seletores CSS para extração de estatísticas de jogadores
-- Gerenciamento centralizado de seletores para manutenibilidade contra mudanças de layout do site
+- **`HLTVURLBuilder`** — Construcao de URL para paginas de estatisticas HLTV
+- **`PlayerStatsSelectors`** — Seletores CSS para extracao de estatisticas
 
-### Subdiretórios
+## Isolamento do Banco de Dados
 
-#### `browser/`
-- Gerenciamento de contexto de navegador Playwright
-- Configuração Chrome headless
-- Tratamento de cookies e sessões
+Tabelas HLTV (`ProPlayer`, `ProPlayerStatCard`, `ProTeam`) ficam no `hltv_metadata.db`, completamente separadas do `database.db` principal usado para ingestao de demos e pipelines ML.
 
-#### `collectors/`
-- **`PlayerCollector`** — Extração especializada de dados de jogadores
-- Parsing de resultados de partidas
-- Agregação de roster de times
+## Ponto de Entrada
 
-#### `cache/`
-- Camada de cache de respostas para minimizar requisições redundantes
-- Expiração de cache baseada em TTL
-- Estratégias de invalidação de cache
-
-## Integração
-
-Usado pela pipeline `pro_ingest.py` para popular tabelas `ProPlayer`, `MatchResult` e `TeamComposition`. Dados HLTV servem como ground truth para baselines profissionais e análise de meta-jogo.
-
-## Rate Limiting
-
-Padrão: 10 requisições/minuto. Configurável via `config.HLTV_RATE_LIMIT`. Exceder o limite aciona backoff exponencial.
-
-## Tratamento de Erros
-
-Falhas de rede, timeouts e erros de parsing são logados com IDs de correlação. Requisições falhadas são retentadas até 3 vezes com backoff exponencial.
+O servico e iniciado via `hltv_sync_service.py` como daemon em background, controlado pelo console.

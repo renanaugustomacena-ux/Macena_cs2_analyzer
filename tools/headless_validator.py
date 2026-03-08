@@ -2150,7 +2150,7 @@ print("\n[Phase 19] Circuit Breaker & HLTV Resilience")
 
 def verify_circuit_breaker_state_machine():
     """CircuitBreaker opens after MAX_FAILURES consecutive failures."""
-    from Programma_CS2_RENAN.backend.data_sources.hltv.hltv_api_service import _CircuitBreaker
+    from Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher import _CircuitBreaker
 
     cb = _CircuitBreaker()
     for _ in range(9):
@@ -2164,7 +2164,7 @@ def verify_circuit_breaker_state_machine():
 
 
 def verify_circuit_breaker_reset_on_success():
-    from Programma_CS2_RENAN.backend.data_sources.hltv.hltv_api_service import _CircuitBreaker
+    from Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher import _CircuitBreaker
 
     cb = _CircuitBreaker()
     for _ in range(10):
@@ -2178,7 +2178,7 @@ def verify_circuit_breaker_reset_on_success():
 
 
 def verify_circuit_breaker_constants():
-    from Programma_CS2_RENAN.backend.data_sources.hltv.hltv_api_service import _CircuitBreaker
+    from Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher import _CircuitBreaker
 
     if _CircuitBreaker.MAX_FAILURES != 10:
         raise AssertionError(

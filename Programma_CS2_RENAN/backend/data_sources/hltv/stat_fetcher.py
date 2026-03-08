@@ -16,6 +16,33 @@ import re
 import time
 from typing import Any, Dict, List, Optional
 
+
+# Circuit breaker — stops the scraping loop after MAX_FAILURES consecutive failures
+# to avoid wasting hours on a blocked/unavailable service.
+class _CircuitBreaker:
+    """Open after MAX_FAILURES consecutive failures; resets after RESET_WINDOW_S."""
+
+    MAX_FAILURES = 10
+    RESET_WINDOW_S = 3600.0
+
+    def __init__(self):
+        self._failures = 0
+        self._last_failure_ts: float = 0.0
+
+    def record_failure(self) -> None:
+        now = time.monotonic()
+        if now - self._last_failure_ts > self.RESET_WINDOW_S:
+            self._failures = 0
+        self._failures += 1
+        self._last_failure_ts = now
+
+    def record_success(self) -> None:
+        self._failures = 0
+
+    @property
+    def is_open(self) -> bool:
+        return self._failures >= self.MAX_FAILURES
+
 try:
     from bs4 import BeautifulSoup
 
