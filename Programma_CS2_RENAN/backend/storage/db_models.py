@@ -49,6 +49,7 @@ class PlayerMatchStats(SQLModel, table=True):
     dataset_split: DatasetSplit = Field(
         default=DatasetSplit.UNASSIGNED, index=True
     )  # Enum-validated
+    data_quality: str = Field(default="partial")  # C-04: "none", "partial", "complete"
 
     avg_kills: float = Field(default=0.0)
     avg_deaths: float = Field(default=0.0)
@@ -269,11 +270,11 @@ class IngestionTask(SQLModel, table=True):
     retry_count: int = Field(default=0)
     error_message: Optional[str] = None
     created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
-    # MAINTENANCE TRAP: updated_at has no ORM-level auto-refresh.
-    # Any code path that updates an IngestionTask MUST manually set:
-    #   task.updated_at = datetime.now(timezone.utc)
-    # Failing to do so leaves stale timestamps silently.
-    updated_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
+    # R2-05: Auto-refresh on UPDATE via sa_column_kwargs.
+    updated_at: datetime = Field(
+        default_factory=lambda: datetime.now(timezone.utc),
+        sa_column_kwargs={"onupdate": lambda: datetime.now(timezone.utc)},
+    )
 
 
 
@@ -460,7 +461,10 @@ class CoachingExperience(SQLModel, table=True):
     Adheres to GEMINI.md: Explicit state, high-fidelity data.
     """
 
-    __table_args__ = {"extend_existing": True}
+    __table_args__ = (
+        Index("ix_coachingexperience_context_outcome", "context_hash", "outcome"),
+        {"extend_existing": True},
+    )
     id: Optional[int] = Field(default=None, primary_key=True)
 
     # Context Identification

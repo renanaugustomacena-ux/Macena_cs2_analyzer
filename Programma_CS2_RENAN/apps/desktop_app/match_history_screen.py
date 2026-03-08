@@ -9,44 +9,18 @@ from kivymd.uix.label import MDLabel
 from kivymd.uix.screen import MDScreen
 
 from Programma_CS2_RENAN.apps.desktop_app.data_viewmodels import MatchHistoryViewModel
+from Programma_CS2_RENAN.apps.desktop_app.theme import (
+    COLOR_CARD_BG as _COLOR_CARD_BG,
+    rating_color as _rating_color,
+    rating_label as _rating_label,
+)
 from Programma_CS2_RENAN.core.registry import registry
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.match_history")
 
-# Standard HLTV rating thresholds
-_RATING_GOOD = 1.10
-_RATING_BAD = 0.90
-
 # Map name extraction from demo filenames (e.g. "match_de_dust2_12345.dem")
 _MAP_PATTERN = re.compile(r"(de_\w+|cs_\w+|ar_\w+)")
-
-# Rating color coding
-# F7-13: COLOR_GREEN/YELLOW/RED duplicated in match_detail_screen.py. Consolidate to
-# apps/desktop_app/theme.py when UI theming is refactored.
-_COLOR_GREEN = (0.30, 0.69, 0.31, 1)  # #4CAF50
-_COLOR_YELLOW = (1.0, 0.60, 0.0, 1)  # #FF9800
-_COLOR_RED = (0.96, 0.26, 0.21, 1)  # #F44336
-_COLOR_CARD_BG = (0.12, 0.12, 0.14, 1)  # Dark card
-
-
-def _rating_color(rating: float):
-    if rating > _RATING_GOOD:
-        return _COLOR_GREEN
-    if rating < _RATING_BAD:
-        return _COLOR_RED
-    return _COLOR_YELLOW
-
-
-# P4-07: Text label alongside color for WCAG 1.4.1 color-blind accessibility
-def _rating_label(rating: float) -> str:
-    if rating >= 1.20:
-        return "Excellent"
-    if rating > _RATING_GOOD:
-        return "Good"
-    if rating >= _RATING_BAD:
-        return "Average"
-    return "Below Avg"
 
 
 def _extract_map_name(demo_name: str) -> str:
@@ -72,6 +46,8 @@ class MatchHistoryScreen(MDScreen):
 
     def _on_matches_loaded(self, instance, matches):
         if not matches:
+            # DA-MH-01: Clear "Loading..." state when result is empty
+            self._show_placeholder("No matches found. Play some games!")
             return
         self._populate(matches)
 

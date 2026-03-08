@@ -14,6 +14,7 @@ from kivymd.uix.screen import MDScreen
 from kivymd.uix.textfield import MDTextField, MDTextFieldHintText
 
 from Programma_CS2_RENAN.core.config import get_setting, save_user_setting
+from Programma_CS2_RENAN.core.platform_utils import get_available_drives
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 app_logger = get_logger("cs2analyzer.wizard_screen")
@@ -150,33 +151,70 @@ class WizardScreen(MDScreen):
         self.ids.next_btn.text = i18n.get_text("wizard_launch_btn", self.app.lang_trigger)
 
     def build_demo_path(self):
-        # F7-03: Stub — demo_path step not yet implemented.
-        # Normal flow skips this step (brain_path → finish via validate_brain_step()).
-        # Implement when a dedicated demo-path selection wizard step is required.
-        app_logger.debug("build_demo_path() called — step not yet implemented, skipping")
-        self.load_step("finish")
+        from Programma_CS2_RENAN.core.localization import i18n
 
-    def _get_available_drives(self):
-        """Returns a list of available drive letters on Windows."""
-        # F7-06: Duplicate of _get_available_drives() in main.py (~L1600). Consolidation
-        # deferred to avoid blast radius. When modifying drive enumeration logic, update both copies.
-        import string
+        self.ids.title_label.text = i18n.get_text("wizard_step2_title", self.app.lang_trigger)
+        box = MDBoxLayout(
+            orientation="vertical", spacing="20dp", adaptive_height=True, pos_hint={"center_y": 0.5}
+        )
 
-        if platform == "win":
+        info = MDLabel(
+            text=i18n.get_text("wizard_step2_desc", self.app.lang_trigger),
+            halign="center",
+            font_style="Body",
+            role="medium",
+        )
+        box.add_widget(info)
+
+        self.demo_field = MDTextField(
+            MDTextFieldHintText(text=i18n.get_text("wizard_step2_hint", self.app.lang_trigger)),
+            text=self.demo_path,
+            mode="outlined",
+            on_text_validate=self.validate_demo_step,
+        )
+        box.add_widget(self.demo_field)
+
+        path_lbl = MDLabel(
+            text=f"{i18n.get_text('select_round', self.app.lang_trigger)}: {self.demo_path or 'None'}",
+            halign="center",
+            bold=True,
+            theme_text_color="Primary",
+            font_style="Body",
+            role="small",
+        )
+        btn = MDButton(
+            MDButtonText(text=i18n.get_text("wizard_select_folder", self.app.lang_trigger)),
+            style="filled",
+            pos_hint={"center_x": 0.5},
+            on_release=lambda x: self.open_picker("demo"),
+        )
+
+        box.add_widget(path_lbl)
+        box.add_widget(btn)
+
+        self.ids.content_area.add_widget(box)
+        self.ids.next_btn.text = i18n.get_text("next", self.app.lang_trigger)
+
+    def validate_demo_step(self, *args):
+        """Validate demo path and advance to finish step."""
+        if hasattr(self, "demo_field") and self.demo_field.text:
+            self.demo_path = self.demo_field.text
+
+        if not self.demo_path:
+            # Skip is acceptable — demo path is optional
+            app_logger.debug("No demo path provided, skipping to finish")
+            Clock.schedule_once(lambda dt: self.load_step("finish"), 0.1)
+            return
+
+        if not os.path.isdir(self.demo_path):
             try:
-                from ctypes import windll
+                os.makedirs(self.demo_path, exist_ok=True)
+            except OSError as e:
+                app_logger.warning("Cannot create demo path %s: %s", self.demo_path, e)
 
-                drives = []
-                bitmask = windll.kernel32.GetLogicalDrives()
-                for letter in string.ascii_uppercase:
-                    if bitmask & 1:
-                        drives.append(letter + ":\\")
-                    bitmask >>= 1
-                return drives
-            except Exception as e:
-                app_logger.warning("Drive detection failed: %s", e)
-                return [os.path.expanduser("~")]
-        return ["/"]
+        save_user_setting("DEFAULT_DEMO_PATH", self.demo_path)
+        app_logger.debug("Demo path saved: %s", self.demo_path)
+        Clock.schedule_once(lambda dt: self.load_step("finish"), 0.1)
 
     def _show_drive_selector(self, drives):
         content = MDBoxLayout(orientation="vertical", adaptive_height=True, size_hint_y=None)
@@ -210,7 +248,7 @@ class WizardScreen(MDScreen):
         self.selection_target = target
 
         if platform == "win":
-            drives = self._get_available_drives()
+            drives = get_available_drives()
             if len(drives) > 1:
                 self._show_drive_selector(drives)
                 return
@@ -249,7 +287,8 @@ class WizardScreen(MDScreen):
         app_logger.debug("validate_brain_step called")
         # Check text field first if manual entry
         if hasattr(self, "brain_field") and self.brain_field.text:
-            self.brain_path = self.brain_field.text
+            # DA-WZ-01: Normalize path to prevent traversal and handle user shortcuts
+            self.brain_path = os.path.normpath(os.path.expanduser(self.brain_field.text.strip()))
             app_logger.debug("Using manual text: %s", self.brain_path)
         else:
             app_logger.debug("Using selection: %s", self.brain_path)
@@ -281,9 +320,9 @@ class WizardScreen(MDScreen):
             app_logger.debug("Folders created. Saving setting.")
             save_user_setting("BRAIN_DATA_ROOT", self.brain_path)
 
-            app_logger.debug("Loading next step 'finish'")
+            app_logger.debug("Loading next step 'demo_path'")
             # Force main thread update to prevent UI freeze
-            Clock.schedule_once(lambda dt: self.load_step("finish"), 0.1)
+            Clock.schedule_once(lambda dt: self.load_step("demo_path"), 0.1)
 
         except OSError as e:
             app_logger.error("OSError creating brain folder: %s", e)
@@ -323,6 +362,8 @@ class WizardScreen(MDScreen):
             self.load_step("brain_path")
         elif self.step == "brain_path":
             self.validate_brain_step()
+        elif self.step == "demo_path":
+            self.validate_demo_step()
         elif self.step == "finish":
             self.finish_setup()
 

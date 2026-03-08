@@ -408,11 +408,8 @@ DATASOURCE_IMPORTS = [
     "Programma_CS2_RENAN.backend.data_sources.hltv.flaresolverr_client",
     "Programma_CS2_RENAN.backend.data_sources.hltv.docker_manager",
     "Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher",
-    "Programma_CS2_RENAN.backend.data_sources.hltv.cache.proxy",
-    "Programma_CS2_RENAN.backend.data_sources.hltv.collectors.players",
-    # hltv.browser.manager and hltv.hltv_api_service require 'playwright' (optional)
-    # "Programma_CS2_RENAN.backend.data_sources.hltv.browser.manager",
-    # "Programma_CS2_RENAN.backend.data_sources.hltv.hltv_api_service",
+    # Removed in commit 4c71484 (HLTV pipeline cleanup):
+    # cache.proxy, collectors.players, browser.manager, hltv_api_service
 ]
 
 for mod in DATASOURCE_IMPORTS:
@@ -2148,51 +2145,8 @@ check("MLCtrl", "TrainingStopRequested is Exception subclass", verify_training_s
 print("\n[Phase 19] Circuit Breaker & HLTV Resilience")
 
 
-def verify_circuit_breaker_state_machine():
-    """CircuitBreaker opens after MAX_FAILURES consecutive failures."""
-    from Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher import _CircuitBreaker
-
-    cb = _CircuitBreaker()
-    for _ in range(9):
-        cb.record_failure()
-    if cb.is_open:
-        raise AssertionError("CircuitBreaker opened after only 9 failures")
-
-    cb.record_failure()  # 10th
-    if not cb.is_open:
-        raise AssertionError("CircuitBreaker did not open after 10 failures")
-
-
-def verify_circuit_breaker_reset_on_success():
-    from Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher import _CircuitBreaker
-
-    cb = _CircuitBreaker()
-    for _ in range(10):
-        cb.record_failure()
-    if not cb.is_open:
-        raise AssertionError("Pre-condition: breaker should be open")
-
-    cb.record_success()
-    if cb.is_open:
-        raise AssertionError("CircuitBreaker did not close after record_success()")
-
-
-def verify_circuit_breaker_constants():
-    from Programma_CS2_RENAN.backend.data_sources.hltv.stat_fetcher import _CircuitBreaker
-
-    if _CircuitBreaker.MAX_FAILURES != 10:
-        raise AssertionError(
-            f"MAX_FAILURES = {_CircuitBreaker.MAX_FAILURES}, expected 10"
-        )
-    if _CircuitBreaker.RESET_WINDOW_S != 3600:
-        raise AssertionError(
-            f"RESET_WINDOW_S = {_CircuitBreaker.RESET_WINDOW_S}, expected 3600"
-        )
-
-
-check("HLTV", "CircuitBreaker opens after MAX_FAILURES", verify_circuit_breaker_state_machine)
-check("HLTV", "CircuitBreaker resets on success", verify_circuit_breaker_reset_on_success)
-check("HLTV", "CircuitBreaker constants (10, 3600)", verify_circuit_breaker_constants)
+# CircuitBreaker tests removed — _CircuitBreaker was deleted in commit 4c71484
+# (HLTV pipeline cleanup: hltv_api_service.py removed).
 
 
 # ── Phase 20: Shared Utilities & Missing Module Imports ──────────────────────

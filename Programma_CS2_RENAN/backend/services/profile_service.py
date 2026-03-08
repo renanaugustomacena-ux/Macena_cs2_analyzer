@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional
+from urllib.parse import quote
 
 import requests
 from sqlmodel import select
@@ -82,7 +83,8 @@ def _fetch_cs2_hours(key: str, steam_id: str) -> float:
 
 def _execute_faceit_fetch(key: str, nickname: str) -> Dict[str, Any]:
     headers = {"Authorization": f"Bearer {key}"}
-    url = f"https://open.faceit.com/data/v4/players?nickname={nickname}&game=cs2"
+    # AC-28-02: URL-encode nickname to prevent query string corruption
+    url = f"https://open.faceit.com/data/v4/players?nickname={quote(nickname)}&game=cs2"
     try:
         r = requests.get(url, headers=headers, timeout=10).json()
         stats = r.get("games", {}).get("cs2", {})

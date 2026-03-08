@@ -327,7 +327,11 @@ class UserProfileScreen(MDScreen):
         if p.get("steam_avatar_url"):
             self.ids.avatar_image.source = p["steam_avatar_url"]
         if p.get("pc_specs_json"):
-            specs = json.loads(p["pc_specs_json"])
+            # DA-01-03: Guard against malformed JSON from DB
+            try:
+                specs = json.loads(p["pc_specs_json"])
+            except (json.JSONDecodeError, TypeError):
+                specs = {}
             self.ids.specs_label.text = (
                 f"CPU: {specs.get('cpu', 'N/A')} | GPU: {specs.get('gpu', 'N/A')}"
             )
@@ -357,16 +361,16 @@ class UserProfileScreen(MDScreen):
         content.add_widget(self.bio_f)
         content.add_widget(self.role_f)
         self.edit_dialog = MDDialog(
-            MDDialogHeadlineText(text="Edit Profile"),
+            MDDialogHeadlineText(text=i18n.get_text("dialog_edit_profile", self.lang_trigger)),
             MDDialogContentContainer(content),
             MDDialogButtonContainer(
                 MDButton(
-                    MDButtonText(text="CANCEL"),
+                    MDButtonText(text=i18n.get_text("dialog_cancel", self.lang_trigger)),
                     style="text",
                     on_release=lambda x: self.edit_dialog.dismiss(),
                 ),
                 MDButton(
-                    MDButtonText(text="SAVE"),
+                    MDButtonText(text=i18n.get_text("dialog_save", self.lang_trigger)),
                     style="filled",
                     on_release=lambda x: self.save_profile(),
                 ),
@@ -473,16 +477,16 @@ class CS2AnalyzerApp(MDApp):
 
     def open_url(self, url):
         dialog = MDDialog(
-            MDDialogHeadlineText(text="Open External Link?"),
+            MDDialogHeadlineText(text=i18n.get_text("dialog_open_link", self.lang_trigger)),
             MDDialogSupportingText(text=url),
             MDDialogButtonContainer(
                 MDButton(
-                    MDButtonText(text="Cancel"),
+                    MDButtonText(text=i18n.get_text("dialog_cancel_lower", self.lang_trigger)),
                     style="text",
                     on_release=lambda x: dialog.dismiss(),
                 ),
                 MDButton(
-                    MDButtonText(text="Open"),
+                    MDButtonText(text=i18n.get_text("dialog_open", self.lang_trigger)),
                     style="filled",
                     on_release=lambda x: (dialog.dismiss(), webbrowser.open(url)),
                 ),
@@ -1262,39 +1266,6 @@ class CS2AnalyzerApp(MDApp):
         except Exception as e:
             self.show_error_dialog("Setting Fail", str(e))
 
-    def _get_available_drives(self):
-        """Returns a list of available drive letters on Windows."""
-        import string
-
-        if platform == "win":
-            try:
-                from ctypes import windll
-
-                drives = []
-                bitmask = windll.kernel32.GetLogicalDrives()
-                for letter in string.ascii_uppercase:
-                    if bitmask & 1:
-                        drives.append(letter + ":\\")
-                    bitmask >>= 1
-                return drives
-            except Exception as e:
-                # Fallback: use psutil to get writable drives instead of hardcoded C:
-                app_logger.debug("Win32 drive detection failed: %s", e)
-                try:
-                    import psutil
-
-                    writable_drives = [
-                        p.mountpoint
-                        for p in psutil.disk_partitions()
-                        if "rw" in p.opts and os.path.isdir(p.mountpoint)
-                    ]
-                    return writable_drives if writable_drives else [os.path.expanduser("~")]
-                except Exception as e2:
-                    # Last resort: user home directory
-                    app_logger.debug("psutil drive detection failed: %s", e2)
-                    return [os.path.expanduser("~")]
-        return ["/"]
-
     def open_folder_picker(self, target="default"):
         self.is_picker, self.folder_picker_target = True, target
         self.file_manager.selector, self.file_manager.ext = "folder", []
@@ -1302,7 +1273,8 @@ class CS2AnalyzerApp(MDApp):
         # UX Upgrade: Show Drive Selector on Windows if multiple drives exist
         # instead of jumping to a potentially trapped folder
         if platform == "win":
-            drives = self._get_available_drives()
+            from Programma_CS2_RENAN.core.platform_utils import get_available_drives
+            drives = get_available_drives()
             if len(drives) > 1:
                 # Show Drive Selection Dialog
                 self._show_drive_selector(drives)
@@ -1342,11 +1314,11 @@ class CS2AnalyzerApp(MDApp):
         content.add_widget(scroll)
 
         drive_dialog = MDDialog(
-            MDDialogHeadlineText(text="Select Drive"),
+            MDDialogHeadlineText(text=i18n.get_text("dialog_select_drive", self.lang_trigger)),
             MDDialogContentContainer(content),
             MDDialogButtonContainer(
                 MDButton(
-                    MDButtonText(text="Cancel"),
+                    MDButtonText(text=i18n.get_text("dialog_cancel_lower", self.lang_trigger)),
                     style="text",
                     on_release=lambda x: drive_dialog.dismiss(),
                 ),
@@ -1615,11 +1587,12 @@ class CS2AnalyzerApp(MDApp):
         )
         content.add_widget(
             MDLabel(
-                text="Reconstructing 2D Dynamics...", halign="center", theme_text_color="Secondary"
+                text=i18n.get_text("dialog_reconstructing", self.lang_trigger),
+                halign="center", theme_text_color="Secondary",
             )
         )
         self.parsing_dialog = MDDialog(
-            MDDialogHeadlineText(text="Tactical Laboratory"),
+            MDDialogHeadlineText(text=i18n.get_text("dialog_tactical_lab", self.lang_trigger)),
             MDDialogContentContainer(content),
             auto_dismiss=False,
         )
@@ -1655,25 +1628,29 @@ class CS2AnalyzerApp(MDApp):
         if self.parsing_dialog:
             self.parsing_dialog.dismiss()
             self.parsing_dialog = None
-        self.show_error_dialog("Analysis Failed", str(error))
+        self.show_error_dialog(
+            i18n.get_text("dialog_analysis_failed", self.lang_trigger), str(error)
+        )
 
     def show_error_dialog(self, t, txt):
+        ok = i18n.get_text("dialog_ok", self.lang_trigger)
         dlg = MDDialog(
             MDDialogHeadlineText(text=t),
             MDDialogSupportingText(text=txt),
             MDDialogButtonContainer(
-                MDButton(MDButtonText(text="OK"), style="text", on_release=lambda x: dlg.dismiss()),
+                MDButton(MDButtonText(text=ok), style="text", on_release=lambda x: dlg.dismiss()),
             ),
         )
         dlg.open()
 
     def show_success_dialog(self, t, txt):
+        ok = i18n.get_text("dialog_ok", self.lang_trigger)
         dlg = MDDialog(
             MDDialogHeadlineText(text=t),
             MDDialogSupportingText(text=txt),
             MDDialogButtonContainer(
                 MDButton(
-                    MDButtonText(text="OK"), style="filled", on_release=lambda x: dlg.dismiss()
+                    MDButtonText(text=ok), style="filled", on_release=lambda x: dlg.dismiss()
                 ),
             ),
         )
@@ -1721,11 +1698,12 @@ class CS2AnalyzerApp(MDApp):
         content.add_widget(AsyncImage(source=out_path, allow_stretch=True, keep_ratio=True))
 
         dlg = MDDialog(
-            MDDialogHeadlineText(text="Skill Radar Analysis"),
+            MDDialogHeadlineText(text=i18n.get_text("dialog_skill_radar", self.lang_trigger)),
             MDDialogContentContainer(content),
             MDDialogButtonContainer(
                 MDButton(
-                    MDButtonText(text="CLOSE"), style="text", on_release=lambda x: dlg.dismiss()
+                    MDButtonText(text=i18n.get_text("dialog_close", self.lang_trigger)),
+                    style="text", on_release=lambda x: dlg.dismiss(),
                 ),
             ),
         )

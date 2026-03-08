@@ -4,6 +4,9 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# R1-06: Extracted from inline magic number. Controls associative memory capacity.
+HOPFIELD_MEMORY_SLOTS = 512
+
 
 class Hopfield(nn.Module):
     """
@@ -56,8 +59,9 @@ class Hopfield(nn.Module):
         # We'll use a widely generic implementation:
         # Attention(Q, K, V) where Q = Input, K=V = Learned Memory
 
-        # Memory Size: arbitrary, let's say 512 patterns if not specified
-        memory_slots = 512
+        # R1-06: Hopfield associative memory capacity. 512 slots provides sufficient
+        # capacity for CS2 tactical pattern storage without excessive memory overhead.
+        memory_slots = HOPFIELD_MEMORY_SLOTS
 
         self.memory_keys = nn.Parameter(
             torch.randn(memory_slots, self.stored_pattern_size * num_heads) * 0.02

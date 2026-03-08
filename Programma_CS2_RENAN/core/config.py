@@ -173,6 +173,7 @@ def load_user_settings():
             "USE_OLLAMA_COACHING": False,
             "USE_RAG_COACHING": False,
             "USE_RAP_MODEL": False,
+            "ZOMBIE_TASK_THRESHOLD_SECONDS": 300,
         }
 
         # File I/O and keyring retrieval are inside the lock to prevent

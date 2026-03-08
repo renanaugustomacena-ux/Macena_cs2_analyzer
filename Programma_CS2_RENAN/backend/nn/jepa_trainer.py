@@ -34,7 +34,9 @@ class JEPATrainer:
         drift_threshold: float = 2.5,
     ):
         self.model = model
-        self.optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
+        # NN-36: Exclude target encoder (EMA-only, never receives gradients)
+        trainable = [p for n, p in model.named_parameters() if "target_encoder" not in n]
+        self.optimizer = optim.AdamW(trainable, lr=lr, weight_decay=weight_decay)
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=100)
 
         # Task 2.19.3: Drift monitoring for automatic retraining
@@ -114,16 +116,15 @@ class JEPATrainer:
             x_context = batch["context"].to(device)
             x_target = batch["target"].to(device)
 
-            # Simple in-batch negatives: use other targets as negatives
+            # In-batch negatives: encode all targets once, then exclude self (NN-35 fix)
             batch_size = x_target.size(0)
-            negatives = []
-            for i in range(batch_size):
-                negs = torch.cat([x_target[:i], x_target[i + 1 :]], dim=0)
-                with torch.no_grad():
-                    encoded_negs = self.model.target_encoder(negs).mean(dim=1)
-                negatives.append(encoded_negs)
+            with torch.no_grad():
+                all_encoded = self.model.target_encoder(x_target).mean(dim=1)  # [B, latent]
 
-            negatives_tensor = torch.stack(negatives)
+            indices = torch.arange(batch_size, device=device)
+            negatives_tensor = torch.stack(
+                [all_encoded[indices != i] for i in range(batch_size)]
+            )  # [B, B-1, latent]
 
             result = self.train_step(x_context, x_target, negatives_tensor)
             total_loss += result["loss"]

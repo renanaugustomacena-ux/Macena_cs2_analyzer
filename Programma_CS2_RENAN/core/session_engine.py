@@ -171,8 +171,8 @@ def run_session_loop():
         logger.info("Session Engine Exiting")
 
 
-# Tasks stuck in "processing" for longer than this are considered zombies.
-# 5 minutes is generous — the longest legitimate ingestion task takes ~2 minutes.
+# R1-05: Configurable zombie threshold (default 300s = 5 minutes).
+# Registered in config.py defaults as ZOMBIE_TASK_THRESHOLD_SECONDS.
 _ZOMBIE_THRESHOLD_SECONDS = 300
 
 
@@ -188,7 +188,9 @@ def _cleanup_zombie_tasks():
     try:
         from Programma_CS2_RENAN.backend.storage.db_models import IngestionTask
 
-        cutoff = datetime.now(timezone.utc) - timedelta(seconds=_ZOMBIE_THRESHOLD_SECONDS)
+        from Programma_CS2_RENAN.core.config import get_setting
+        threshold = get_setting("ZOMBIE_TASK_THRESHOLD_SECONDS", default=_ZOMBIE_THRESHOLD_SECONDS)
+        cutoff = datetime.now(timezone.utc) - timedelta(seconds=threshold)
 
         with db.get_session() as s:
             zombies = s.exec(
