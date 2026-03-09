@@ -44,15 +44,8 @@ except Exception as e:
     logger.warning("Failed to setup file logging: %s", e)
 
 
-# if project_root not in sys.path:
-#     sys.path.insert(0, project_root)
-# from Programma_CS2_RENAN.core.config import stabilize_paths
-# project_root = stabilize_paths()
-
 # ResourceManager is used in _digester_daemon_loop
 from Programma_CS2_RENAN.backend.ingestion.resource_manager import ResourceManager
-
-# STOP_SIGNAL = SCRIPT_DIR / "session_engine.stop" # Removed
 
 # Event-driven signaling for daemon coordination
 _shutdown_event = threading.Event()
@@ -106,7 +99,13 @@ def run_session_loop():
             logger.info("Daily Backup already exists. Skipping.")
     except Exception as e:
         logger.exception("Backup Routine Failed")
-        # Non-blocking: We continue ensuring core functionality works
+        # SE-05: Surface backup failure to UI so user knows data is unprotected
+        try:
+            get_state_manager().add_notification(
+                "global", "WARNING", f"Automated backup failed: {e}"
+            )
+        except Exception:
+            pass  # Best-effort; don't block startup
 
     # --- H-02: One-time knowledge base population (pro demo mining) ---
     try:
@@ -149,10 +148,12 @@ def run_session_loop():
     except Exception as e:
         logger.exception("Failed to start IngestionWatcher")
 
-    threading.Thread(target=_scanner_daemon_loop, daemon=True).start()
-    threading.Thread(target=_digester_daemon_loop, daemon=True).start()
-    threading.Thread(target=_teacher_daemon_loop, daemon=True).start()
-    threading.Thread(target=_pulse_daemon_loop, daemon=True).start()
+    # SE-02: Store daemon thread references for graceful join on shutdown.
+    _daemon_threads = []
+    for target in (_scanner_daemon_loop, _digester_daemon_loop, _teacher_daemon_loop, _pulse_daemon_loop):
+        t = threading.Thread(target=target, daemon=True)
+        t.start()
+        _daemon_threads.append(t)
 
     # Main Keep-Alive (Event Driven)
     try:
@@ -167,6 +168,9 @@ def run_session_loop():
         _shutdown_event.set()  # Signal all daemons to stop
         if watcher:
             watcher.stop()
+        # SE-02: Join daemon threads for graceful shutdown (5s timeout each)
+        for t in _daemon_threads:
+            t.join(timeout=5)
         get_state_manager().update_status("global", "Offline", "Session Engine Exited")
         logger.info("Session Engine Exiting")
 
@@ -190,6 +194,17 @@ def _cleanup_zombie_tasks():
 
         from Programma_CS2_RENAN.core.config import get_setting
         threshold = get_setting("ZOMBIE_TASK_THRESHOLD_SECONDS", default=_ZOMBIE_THRESHOLD_SECONDS)
+        # SE-04: Validate type and range
+        try:
+            threshold = int(threshold)
+        except (TypeError, ValueError):
+            logger.warning("Invalid ZOMBIE_TASK_THRESHOLD_SECONDS=%r, using default %d",
+                           threshold, _ZOMBIE_THRESHOLD_SECONDS)
+            threshold = _ZOMBIE_THRESHOLD_SECONDS
+        if threshold <= 0:
+            logger.warning("ZOMBIE_TASK_THRESHOLD_SECONDS must be positive, using default %d",
+                           _ZOMBIE_THRESHOLD_SECONDS)
+            threshold = _ZOMBIE_THRESHOLD_SECONDS
         cutoff = datetime.now(timezone.utc) - timedelta(seconds=threshold)
 
         with db.get_session() as s:
@@ -227,7 +242,10 @@ def _scanner_daemon_loop():
 
     while not _shutdown_event.is_set():
         try:
-            # 1. Reload Settings to catch UI changes to folder paths
+            # SE-07: Reload settings once per cycle. Folder paths are read inside
+            # process_new_demos() from the refreshed globals. A narrow TOCTOU window
+            # remains if the user changes paths mid-cycle, but the next cycle will
+            # pick up the new values — acceptable for a MEDIUM-severity issue.
             refresh_settings()
 
             # 2. Check Play/Pause State (Global Master Switch)
@@ -296,12 +314,11 @@ def _digester_daemon_loop():
 
             if processed_pro == 0 and processed_user == 0:
                 get_state_manager().update_status("digester", "Idle")
-                # NN-89/NN-90: Event-driven idle with safety timeout.
-                # Primary wakeup: signal_work_available() sets the event.
-                # 2s timeout is a safety net for edge cases (e.g., missed signals),
-                # NOT a polling interval. Under normal load the event fires instantly.
-                _work_available_event.clear()
+                # IM-03: Wait first, then clear — avoids race where signal_work_available()
+                # fires between clear() and wait(), losing the wakeup signal.
+                # 2s timeout is a safety net for edge cases (e.g., missed signals).
                 _work_available_event.wait(timeout=2.0)
+                _work_available_event.clear()
             else:
                 get_state_manager().update_status("digester", "Processing")
 
@@ -335,7 +352,8 @@ def _teacher_daemon_loop():
                     logger.warning(
                         "Teacher daemon: training skipped — another session active."
                     )
-                    _shutdown_event.wait(60)
+                    # SE-06: Short wait (5s) instead of 60s for faster shutdown response
+                    _shutdown_event.wait(5)
                     continue
 
                 try:

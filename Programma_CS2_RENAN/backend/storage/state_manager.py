@@ -33,6 +33,7 @@ class StateManager:
         """
         Retrieves the singleton CoachState. Creates it if it doesn't exist.
         P0-04: Lock acquired to prevent duplicate row creation under concurrent access.
+        SM-01: Expunge before return so the object is safely detached from the session.
         """
         with self._lock, self.db.get_session() as session:
             state = session.exec(select(CoachState)).first()
@@ -41,6 +42,7 @@ class StateManager:
                 session.add(state)
                 session.commit()
                 session.refresh(state)
+            session.expunge(state)
             return state
 
     def update_status(self, daemon: str, status: str, detail: str = ""):

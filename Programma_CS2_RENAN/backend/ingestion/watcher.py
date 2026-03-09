@@ -160,6 +160,11 @@ class DemoFileHandler(FileSystemEventHandler):
     def _queue_file(self, file_path):
         """Thread-safe queue injection."""
         try:
+            # IM-01: Final existence check right before DB insertion to close TOCTOU gap
+            if not os.path.exists(file_path):
+                logger.warning("IM-01: File disappeared before enqueue: %s", file_path)
+                return
+
             # Check for duplicate
             with self.db_manager.get_session() as session:
                 existing = session.exec(

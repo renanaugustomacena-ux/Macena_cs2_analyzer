@@ -8,6 +8,7 @@ after each utility throw.
 Governance: Rule 1 §7.4 (Information-theoretic metrics), Rule 2 §8.2 (Quantitative utility evaluation)
 """
 
+import threading
 from dataclasses import dataclass
 from typing import Dict, List, Optional, Tuple
 
@@ -59,6 +60,8 @@ class EntropyAnalyzer:
         self.grid_resolution = grid_resolution
         # AC-03-01: Pre-allocate grid buffer — reused across calls (zeroed before each use)
         self._grid_buffer = np.zeros((grid_resolution, grid_resolution), dtype=np.float32)
+        # E-01: Lock protects _grid_buffer from concurrent compute_position_entropy() calls
+        self._buffer_lock = threading.Lock()
 
     def compute_position_entropy(
         self,
@@ -82,43 +85,51 @@ class EntropyAnalyzer:
         if not player_positions:
             return 0.0
 
-        # AC-03-01: Reuse pre-allocated buffer when resolution matches
-        if res == self.grid_resolution:
-            grid = self._grid_buffer
-            grid[:] = 0  # zero-fill instead of allocating
-        else:
-            grid = np.zeros((res, res), dtype=np.float32)
+        # E-01: Acquire lock when reusing the shared buffer to prevent concurrent corruption.
+        # For non-default resolutions a fresh array is allocated (no lock needed).
+        use_shared = (res == self.grid_resolution)
+        if use_shared:
+            self._buffer_lock.acquire()
+        try:
+            if use_shared:
+                grid = self._grid_buffer
+                grid[:] = 0  # zero-fill instead of allocating
+            else:
+                grid = np.zeros((res, res), dtype=np.float32)
 
-        xs = [p[0] for p in player_positions]
-        ys = [p[1] for p in player_positions]
+            xs = [p[0] for p in player_positions]
+            ys = [p[1] for p in player_positions]
 
-        x_min, x_max = min(xs) - 1, max(xs) + 1
-        y_min, y_max = min(ys) - 1, max(ys) + 1
+            x_min, x_max = min(xs) - 1, max(xs) + 1
+            y_min, y_max = min(ys) - 1, max(ys) + 1
 
-        x_range = x_max - x_min if x_max != x_min else 1.0
-        y_range = y_max - y_min if y_max != y_min else 1.0
+            x_range = x_max - x_min if x_max != x_min else 1.0
+            y_range = y_max - y_min if y_max != y_min else 1.0
 
-        for x, y in player_positions:
-            gx = int((x - x_min) / x_range * (res - 1))
-            gy = int((y - y_min) / y_range * (res - 1))
-            gx = max(0, min(res - 1, gx))
-            gy = max(0, min(res - 1, gy))
-            grid[gy, gx] += 1.0
+            for x, y in player_positions:
+                gx = int((x - x_min) / x_range * (res - 1))
+                gy = int((y - y_min) / y_range * (res - 1))
+                gx = max(0, min(res - 1, gx))
+                gy = max(0, min(res - 1, gy))
+                grid[gy, gx] += 1.0
 
-        total = grid.sum()
-        if total == 0:
-            return 0.0
+            total = grid.sum()
+            if total == 0:
+                return 0.0
 
-        probs = grid.ravel() / total
-        probs = probs[probs > 0]
-        # E-02-alt: if all probabilities were zero/sub-normal, entropy is 0
-        if len(probs) == 0:
-            return 0.0
+            probs = grid.ravel() / total
+            probs = probs[probs > 0]
+            # E-02-alt: if all probabilities were zero/sub-normal, entropy is 0
+            if len(probs) == 0:
+                return 0.0
 
-        # AC-06-01: clip to avoid log2(0) from floating-point underflow
-        probs = np.clip(probs, np.finfo(np.float32).tiny, None)
-        entropy = -np.sum(probs * np.log2(probs))
-        return float(entropy)
+            # AC-06-01: clip to avoid log2(0) from floating-point underflow
+            probs = np.clip(probs, np.finfo(np.float32).tiny, None)
+            entropy = -np.sum(probs * np.log2(probs))
+            return float(entropy)
+        finally:
+            if use_shared:
+                self._buffer_lock.release()
 
     def analyze_utility_throw(
         self,

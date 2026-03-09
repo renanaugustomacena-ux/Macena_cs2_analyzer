@@ -107,22 +107,28 @@ class MLController:
         self.context = MLControlContext()
         self.thread: Optional[threading.Thread] = None
         self._is_running = False
+        # NN-CTRL-02: Lock protects _is_running against concurrent start_training() calls.
+        self._state_lock = threading.Lock()
+        # NN-CTRL-01: Track whether we actually acquired the training lock.
+        self._lock_acquired = False
 
     def start_training(self):
         """Launches the training cycle in a managed thread."""
-        if self._is_running:
-            logger.warning("MLController: Training already in progress.")
-            return
+        with self._state_lock:
+            if self._is_running:
+                logger.warning("MLController: Training already in progress.")
+                return
 
-        # NN-02: Module-level lock prevents concurrent training across instances
-        if not _TRAINING_LOCK.acquire(blocking=False):
-            logger.warning("MLController: Another training session is active (lock held).")
-            return
+            # NN-02: Module-level lock prevents concurrent training across instances
+            if not _TRAINING_LOCK.acquire(blocking=False):
+                logger.warning("MLController: Another training session is active (lock held).")
+                return
 
-        self._is_running = True
-        self.context._stop_requested = False
-        self.thread = threading.Thread(target=self._run_wrapper, daemon=True)
-        self.thread.start()
+            self._lock_acquired = True
+            self._is_running = True
+            self.context._stop_requested = False
+            self.thread = threading.Thread(target=self._run_wrapper, daemon=True)
+            self.thread.start()
 
     def stop_training(self):
         """Signals the ML stack to terminate at the next safe checkpoint."""
@@ -150,13 +156,13 @@ class MLController:
             logger.error("MLController: Training cycle crashed: %s", e)
             get_state_manager().set_error("teacher", str(e))
         finally:
-            self._is_running = False
-            self.thread = None
-            # NN-02: Release module-level lock so other callers can train
-            try:
-                _TRAINING_LOCK.release()
-            except RuntimeError:
-                pass  # Lock was not acquired (shouldn't happen)
+            with self._state_lock:
+                self._is_running = False
+                self.thread = None
+                # NN-CTRL-01: Only release lock if we actually acquired it
+                if self._lock_acquired:
+                    _TRAINING_LOCK.release()
+                    self._lock_acquired = False
 
     def get_status(self) -> Dict:
         return {

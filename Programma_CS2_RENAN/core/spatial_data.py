@@ -156,9 +156,12 @@ class SpatialConfigLoader:
         return cls._instance
 
     def __init__(self):
-        if not SpatialConfigLoader._loaded:
-            self._load_config()
-            SpatialConfigLoader._loaded = True
+        # SD-01: Protect _loaded flag with lock to prevent duplicate _load_config()
+        # from concurrent __init__ calls racing on the unlocked check.
+        with _loader_lock:
+            if not SpatialConfigLoader._loaded:
+                self._load_config()
+                SpatialConfigLoader._loaded = True
 
     def _load_config(self):
         """Load configuration from JSON file with fallback."""
