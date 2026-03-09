@@ -194,7 +194,9 @@ class HLTVStatFetcher:
                     "kpr": data.get("kpr", 0.0),
                     "dpr": data.get("dpr", 0.0),
                     "adr": data.get("adr", 0.0),
-                    "kast": data.get("kast_pct", 0.0),
+                    # P-SAN-01: HLTV shows KAST as percentage (e.g. 74.0%);
+                    # system stores as ratio [0, 1] (e.g. 0.74).
+                    "kast": data.get("kast_pct", 0.0) / 100.0,
                     "impact": data.get("impact_rating", 0.0),
                     "headshot_pct": data.get("hs_pct", 0.0),
                     "maps_played": data.get("maps_played", 0),
@@ -228,7 +230,8 @@ class HLTVStatFetcher:
             if html:
                 return parser_func(BeautifulSoup(html, "html.parser"))
         except Exception as e:
-            logger.debug("Sub-stat fetch skipped for %s: %s", url, e)
+            # DS-07: Log at WARNING so production failures are visible.
+            logger.warning("Sub-stat fetch failed for %s: %s", url, e)
         return {}
 
     def _safe_float(self, text: str) -> float:

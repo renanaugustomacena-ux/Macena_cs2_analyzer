@@ -108,19 +108,29 @@ def _extract_round_stats(rnd, match_id, match_slug, map_name):
     return stats
 
 
+def _safe_int(val, default: int = 0) -> int:
+    """DS-04: Coerce value to int, returning default on failure."""
+    try:
+        return int(val)
+    except (TypeError, ValueError):
+        return default
+
+
 def _build_flat_stat(t_stats, match_id, match_slug, map_name, round_num):
+    # DS-04: Coerce all numeric fields through _safe_int to handle
+    # string inputs, None values, or other non-numeric JSON data.
     s = {
         "match_id": match_id,
         "match_slug": match_slug,
         "map_name": map_name,
         "round_num": round_num,
         "team_name": t_stats.get("clan_name"),
-        "kills": t_stats.get("kills", 0),
-        "deaths": t_stats.get("death", 0),
-        "damage": t_stats.get("damage", 0),
-        "hits": t_stats.get("hits", 0),
-        "shots": t_stats.get("shots", 0),
-        "money_spent": t_stats.get("money_spent", 0),
+        "kills": _safe_int(t_stats.get("kills")),
+        "deaths": _safe_int(t_stats.get("death")),
+        "damage": _safe_int(t_stats.get("damage")),
+        "hits": _safe_int(t_stats.get("hits")),
+        "shots": _safe_int(t_stats.get("shots")),
+        "money_spent": _safe_int(t_stats.get("money_spent")),
     }
     s["accuracy"] = s["hits"] / s["shots"] if s["shots"] > 0 else 0
     s["econ_rating"] = s["damage"] / s["money_spent"] if s["money_spent"] > 0 else 0

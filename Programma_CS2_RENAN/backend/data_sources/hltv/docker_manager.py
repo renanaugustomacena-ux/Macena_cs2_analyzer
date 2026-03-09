@@ -96,8 +96,14 @@ def ensure_flaresolverr(project_root: str | None = None) -> bool:
 
     # Container doesn't exist — try docker-compose
     if project_root:
-        compose_file = Path(project_root) / "docker-compose.yml"
-        if compose_file.exists():
+        # DS-05: Resolve and validate path before passing to subprocess cwd.
+        _root = Path(project_root).resolve()
+        if not _root.is_dir():
+            logger.warning("DS-05: project_root is not a valid directory: %s", project_root)
+        elif not (_root / "docker-compose.yml").exists():
+            logger.debug("No docker-compose.yml in %s", _root)
+        else:
+            compose_file = _root / "docker-compose.yml"
             logger.info("Container non trovato. Provo docker-compose up -d...")
             try:
                 result = subprocess.run(
@@ -105,7 +111,7 @@ def ensure_flaresolverr(project_root: str | None = None) -> bool:
                     capture_output=True,
                     text=True,
                     timeout=60,
-                    cwd=project_root,
+                    cwd=str(_root),
                 )
                 if result.returncode == 0:
                     logger.info(

@@ -72,6 +72,16 @@ def validate_and_trim(df: pd.DataFrame, strict: bool = False) -> pd.DataFrame:
     trimmed_columns = []
     df_trimmed = df.copy()
 
+    # P-SAN-01: Detect KAST stored as percentage (>1.0) and convert to ratio.
+    if "kast" in df_trimmed.columns:
+        pct_mask = df_trimmed["kast"] > 1.0
+        if pct_mask.any():
+            logger.warning(
+                "P-SAN-01: %d KAST values > 1.0 detected — converting percentage to ratio",
+                pct_mask.sum(),
+            )
+            df_trimmed.loc[pct_mask, "kast"] = df_trimmed.loc[pct_mask, "kast"] / 100.0
+
     for column, (min_val, max_val) in LIMITS.items():
         if column not in df_trimmed.columns:
             continue

@@ -91,13 +91,16 @@ def _build_round_boundaries(round_end_df: pd.DataFrame) -> List[Dict]:
     return boundaries
 
 
-def _assign_round(tick: int, boundaries: List[Dict]) -> int:
-    """Assign a tick to a round number using boundaries."""
+def _assign_round(tick: int, boundaries: List[Dict]) -> Optional[int]:
+    """Assign a tick to a round number using boundaries.
+
+    P-RSB-04: Returns None for ticks outside all boundaries (warmup/overtime)
+    instead of silently attributing them to the last round.
+    """
     for b in boundaries:
         if b["start_tick"] <= tick <= b["end_tick"]:
             return b["round_number"]
-    # Fallback: last round
-    return boundaries[-1]["round_number"] if boundaries else 1
+    return None
 
 
 def _get_team_roster(parser) -> Dict[str, int]:
@@ -185,7 +188,15 @@ def build_round_stats(
     try:
         header = parser.parse_header()
         tick_rate = int(float(header.get("tick_rate", 64) or 64))
-        flash_assist_window = tick_rate * 2  # 2-second window
+        # P-RSB-05: Validate tick_rate range (32–256) to prevent absurd windows.
+        if not (32 <= tick_rate <= 256):
+            logger.warning(
+                "P-RSB-05: tick_rate %d outside valid range [32, 256], using default",
+                tick_rate,
+            )
+            flash_assist_window = _DEFAULT_FLASH_ASSIST_WINDOW_TICKS
+        else:
+            flash_assist_window = tick_rate * 2  # 2-second window
     except Exception:
         flash_assist_window = _DEFAULT_FLASH_ASSIST_WINDOW_TICKS
 
@@ -223,8 +234,11 @@ def build_round_stats(
             all_players.update(
                 deaths_df["user_name"].dropna().astype(str).str.strip().str.lower().unique()
             )
-    # Also from roster
-    all_players.update(team_roster.keys())
+    # Also from roster — P-RSB-02: only include players with valid team_num (2 or 3).
+    # team_num 0 means unassigned/spectator, which produces unreliable stats.
+    for name, tnum in team_roster.items():
+        if tnum in (2, 3):
+            all_players.add(name)
     all_players.discard("")
 
     # Initialize per-round, per-player accumulators
@@ -234,7 +248,10 @@ def build_round_stats(
         rn = b["round_number"]
         for player in all_players:
             team_num = team_roster.get(player, 0)
-            side = _team_num_to_side(team_num, rn) if team_num in (2, 3) else "unknown"
+            # P-RSB-02: Skip players without a valid team assignment.
+            if team_num not in (2, 3):
+                continue
+            side = _team_num_to_side(team_num, rn)
 
             # Determine if player's side won this round
             round_won = False
@@ -286,6 +303,8 @@ def build_round_stats(
         for _, death in deaths_df.iterrows():
             tick = int(death["tick"])
             rn = _assign_round(tick, boundaries)
+            if rn is None:
+                continue  # P-RSB-04: skip warmup/overtime deaths
 
             attacker = str(death.get("attacker_name", "")).strip().lower()
             victim = str(death.get("user_name", "")).strip().lower()
@@ -329,6 +348,8 @@ def build_round_stats(
         for _, hurt in hurt_df.iterrows():
             tick = int(hurt["tick"])
             rn = _assign_round(tick, boundaries)
+            if rn is None:
+                continue
             attacker = str(hurt.get("attacker_name", "")).strip().lower()
             weapon = str(hurt.get("weapon", "")).strip().lower()
             dmg = int(hurt.get("dmg_health", 0))
@@ -351,6 +372,8 @@ def build_round_stats(
         for _, fire in fire_df.iterrows():
             tick = int(fire["tick"])
             rn = _assign_round(tick, boundaries)
+            if rn is None:
+                continue
             player = str(fire.get("player_name", "")).strip().lower()
             weapon = str(fire.get("weapon", "")).strip().lower()
 
@@ -374,6 +397,8 @@ def build_round_stats(
             blinder = str(blind_event.get("attacker_name", "")).strip().lower()
             blinded_player = str(blind_event.get("user_name", "")).strip().lower()
             rn = _assign_round(blind_tick, boundaries)
+            if rn is None:
+                continue
 
             if not blinder or not blinded_player:
                 continue

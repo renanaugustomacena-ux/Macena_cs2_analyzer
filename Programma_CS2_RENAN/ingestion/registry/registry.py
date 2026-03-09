@@ -21,8 +21,11 @@ class DemoRegistry:
         self._load()
 
     def _load(self):
+        # DS-08: Acquire both locks in consistent order (thread lock → file lock)
+        # to prevent races where _save() writes the file while _load() reads it.
         with self._lock:
-            data = _execute_registry_load(self.registry_path)
+            with self._file_lock:
+                data = _execute_registry_load(self.registry_path)
             # F6-20: Convert list → set for O(1) membership checks.
             # JSON serializes as list; we deserialize as set internally.
             self._processed: Set[str] = set(data.get("processed_demos", []))

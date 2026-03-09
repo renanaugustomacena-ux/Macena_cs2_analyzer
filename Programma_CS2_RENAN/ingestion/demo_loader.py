@@ -260,6 +260,7 @@ class DemoLoader:
                                     else []
                                 ),
                                 thrower_id=sid if sid else None,
+                                is_duration_estimated=duration_capped,  # DS-14
                             )
                             # Add to relevant ticks plus fade window
                             for t in range(t_tick or st, et + FADE_TICKS + 1):
@@ -296,6 +297,7 @@ class DemoLoader:
                                     else []
                                 ),
                                 thrower_id=sid if sid else None,
+                                is_duration_estimated=not bool(dur_ticks),  # DS-14
                             )
                             # Add to relevant ticks plus fade window
                             for t in range(t_tick or st, et + FADE_TICKS + 1):
@@ -374,16 +376,11 @@ class DemoLoader:
         current_tick = -1
         current_players: List[PlayerState] = []
 
-        # if not rows_df.empty: # Removed to avoid indent issues
+        # DS-06: Removed dead commented-out guard and debug-only logging.
         for row in rows_df.itertuples():
             t = int(getattr(row, "tick", 0))
             sid = int(getattr(row, "steamid", 0) or 0)
             if t != current_tick:
-                # DEBUG: Print row attributes for the first tick to debug money field
-                if current_tick == -1:
-                    app_logger.debug("Row attributes: %s", row._fields)
-                    app_logger.debug("Row sample: %s", row)
-
                 if current_tick != -1:
                     r_idx = 1
                     for i, r_t in enumerate(round_starts):
@@ -496,7 +493,14 @@ class DemoLoader:
             if res:
                 for row in res[0][1].itertuples():
                     t = int(row.tick)
-                    vic_id = int(getattr(row, "user_steamid", 0))
+                    # DS-09: Guard against None/NaN steamid from bot kills or warmup.
+                    vic_id_raw = getattr(row, "user_steamid", None)
+                    if vic_id_raw is None:
+                        continue
+                    try:
+                        vic_id = int(vic_id_raw)
+                    except (TypeError, ValueError):
+                        continue
                     gx, gy = 0.0, 0.0
                     if t in pos_by_tick and vic_id in pos_by_tick[t]:
                         gx, gy, _ = pos_by_tick[t][vic_id]
