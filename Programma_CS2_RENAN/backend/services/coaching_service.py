@@ -86,7 +86,7 @@ class CoachingService:
         rounds_played: int,
         map_name: str = None,
         player_stats: Dict[str, float] = None,
-        tick_data: Dict = None,
+        tick_data=None,
     ):
         """
         Generates corrections and longitudinal insights and saves them to the database.
@@ -98,6 +98,10 @@ class CoachingService:
         - Basic: Traditional correction engine
 
         After main coaching, runs Phase 6 advanced analysis if data is available.
+
+        Args:
+            tick_data: Per-tick game state data (Dict expected for COPER mode).
+                C-02: Accepts Dict or None. Non-dict types are rejected in COPER path.
         """
         try:
             from Programma_CS2_RENAN.observability.sentry_setup import add_breadcrumb

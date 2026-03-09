@@ -73,15 +73,27 @@ class ProfileService:
 
 
 def _execute_steam_fetch(key: str, steam_id: str) -> Dict[str, Any]:
-    try:
-        resp = requests.get(
-            "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/",
-            params={"key": key, "steamids": steam_id},
-            timeout=10,
-        ).json()
-        return _parse_steam_response(resp, key, steam_id)
-    except Exception as e:
-        return {"error": f"Steam Fetch Failed: {str(e)}"}
+    # P-01: Bounded retry with exponential backoff for transient Steam API failures.
+    _MAX_RETRIES = 3
+    import time
+
+    last_error: Exception | None = None
+    for attempt in range(_MAX_RETRIES):
+        try:
+            resp = requests.get(
+                "https://api.steampowered.com/ISteamUser/GetPlayerSummaries/v0002/",
+                params={"key": key, "steamids": steam_id},
+                timeout=10,
+            ).json()
+            return _parse_steam_response(resp, key, steam_id)
+        except requests.exceptions.RequestException as e:
+            last_error = e
+            if attempt < _MAX_RETRIES - 1:
+                time.sleep(min(2 ** attempt, 10))
+            continue
+        except Exception as e:
+            return {"error": f"Steam Fetch Failed: {str(e)}"}
+    return {"error": f"Steam Fetch Failed after {_MAX_RETRIES} retries: {last_error}"}
 
 
 def _parse_steam_response(resp: Dict[str, Any], key: str, steam_id: str) -> Dict[str, Any]:
@@ -89,6 +101,9 @@ def _parse_steam_response(resp: Dict[str, Any], key: str, steam_id: str) -> Dict
     if not players:
         return {"error": "Player not found"}
     p = players[0]
+    # P-02: Validate player entry is a dict (Steam API contract)
+    if not isinstance(p, dict):
+        return {"error": "Invalid player data from Steam API"}
     cs2_hours = _fetch_cs2_hours(key, steam_id)
     return {
         "nickname": p.get("personaname"),

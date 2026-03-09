@@ -49,6 +49,7 @@ class KnowledgeEmbedder:
         self.model = None
         self.embedding_dim = 384
 
+        self._is_fallback = False
         try:
             from sentence_transformers import SentenceTransformer
 
@@ -57,6 +58,12 @@ class KnowledgeEmbedder:
         except ImportError:
             logger.warning("sentence-transformers not installed. Using fallback embeddings.")
             self.embedding_dim = 100  # Fallback dimension
+            self._is_fallback = True
+        except Exception as e:
+            # H-01: Log non-import failures (corrupt model, disk error, etc.)
+            logger.error("H-01: Failed to load embedding model %s: %s", model_name, e)
+            self.embedding_dim = 100
+            self._is_fallback = True
 
     def embed(self, text: str) -> np.ndarray:
         """
@@ -107,7 +114,15 @@ class KnowledgeEmbedder:
         Returns:
             bool: True if compatible, False if re-embedding needed
         """
-        return stored_dim == self.embedding_dim
+        if stored_dim != self.embedding_dim:
+            # R-01-alt: Log version/dimension mismatch for diagnostics
+            logger.warning(
+                "R-01-alt: Embedding dimension mismatch: stored=%d, current=%d "
+                "(model=%s, version=%s). Reembedding recommended.",
+                stored_dim, self.embedding_dim, self.model_name, self.CURRENT_VERSION,
+            )
+            return False
+        return True
 
     def trigger_reembedding(self) -> int:
         """
@@ -173,6 +188,13 @@ class KnowledgeRetriever:
         # F5-23: init_database() removed — must be called once at app startup, not per-constructor.
         self.db = get_db_manager()
         self.embedder = KnowledgeEmbedder()
+        # H-01: Surface degraded embedder state to retriever consumers
+        if self.embedder._is_fallback:
+            logger.warning(
+                "H-01: KnowledgeRetriever using fallback embeddings (dim=%d). "
+                "RAG retrieval quality will be degraded.",
+                self.embedder.embedding_dim,
+            )
 
     def retrieve(
         self,
@@ -197,6 +219,14 @@ class KnowledgeRetriever:
             List of TacticalKnowledge entries, ranked by relevance
         """
         query_embedding = self.embedder.embed(query)
+
+        # H-02: Validate embedding dimensionality matches expected model output
+        if query_embedding.shape[0] != self.embedder.embedding_dim:
+            logger.error(
+                "H-02: Query embedding dim %d != expected %d — dimension mismatch",
+                query_embedding.shape[0], self.embedder.embedding_dim,
+            )
+            return []
 
         # AC-36-02: FAISS fast-path — O(1) index lookup instead of O(n) brute-force
         from Programma_CS2_RENAN.backend.knowledge.vector_index import (

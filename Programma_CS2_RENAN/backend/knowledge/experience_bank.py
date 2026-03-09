@@ -684,9 +684,10 @@ class ExperienceBank:
 
             # Update experience with feedback (EMA)
             experience.outcome_validated = True
-            experience.effectiveness_score = (
-                experience.effectiveness_score * 0.7 + effectiveness * 0.3
-            )
+            # E-01-alt: Clamp effectiveness to [0, 1] — EMA drift over many
+            # feedback iterations can push the score outside valid bounds.
+            raw_eff = experience.effectiveness_score * 0.7 + effectiveness * 0.3
+            experience.effectiveness_score = max(0.0, min(1.0, raw_eff))
             experience.follow_up_match_id = follow_up_match_id
             experience.times_advice_given = (experience.times_advice_given or 0) + 1
             if action_match:

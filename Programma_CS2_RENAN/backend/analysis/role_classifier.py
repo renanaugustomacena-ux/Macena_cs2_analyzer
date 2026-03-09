@@ -318,6 +318,14 @@ class RoleClassifier:
             with torch.no_grad():
                 probs = model(features.unsqueeze(0)).squeeze(0)  # (5,)
 
+            # R-03: Validate output shape before extracting role
+            if probs.dim() != 1 or probs.shape[0] != len(ROLE_OUTPUT_ORDER):
+                logger.error(
+                    "R-03: Neural classifier output shape mismatch: expected (%d,), got %s",
+                    len(ROLE_OUTPUT_ORDER), tuple(probs.shape),
+                )
+                return None
+
             max_prob, max_idx = probs.max(dim=0)
             confidence = max_prob.item()
 
@@ -330,6 +338,12 @@ class RoleClassifier:
             logger.debug("Neural role classification unavailable: %s", e)
             return None
 
+    # R-01: Named constants for consensus thresholds (previously hardcoded 0.1).
+    # CONSENSUS_BOOST: confidence bonus when both classifiers agree.
+    # NEURAL_MARGIN: minimum confidence margin for neural to override heuristic.
+    _CONSENSUS_BOOST = 0.1
+    _NEURAL_MARGIN = 0.1
+
     @staticmethod
     def _consensus(
         heuristic_role: PlayerRole,
@@ -340,16 +354,19 @@ class RoleClassifier:
         """Consensus between heuristic and neural classifiers.
 
         Rules:
-            1. Both agree → boosted confidence (avg + 0.1, capped at 1.0)
-            2. Disagree, neural has >0.1 margin → neural wins
+            1. Both agree → boosted confidence (avg + _CONSENSUS_BOOST, capped at 1.0)
+            2. Disagree, neural has >_NEURAL_MARGIN → neural wins
             3. Otherwise → heuristic wins (established system, breaks ties)
         """
+        boost = RoleClassifier._CONSENSUS_BOOST
+        margin = RoleClassifier._NEURAL_MARGIN
+
         if heuristic_role == neural_role:
-            combined = min((heuristic_conf + neural_conf) / 2 + 0.1, 1.0)
+            combined = min((heuristic_conf + neural_conf) / 2 + boost, 1.0)
             logger.debug("Consensus AGREE: %s (conf=%.2f)", heuristic_role.value, combined)
             return heuristic_role, combined
 
-        if neural_conf > heuristic_conf + 0.1:
+        if neural_conf > heuristic_conf + margin:
             logger.debug(
                 "Consensus NEURAL: %s (%.2f) over heuristic %s (%.2f)",
                 neural_role.value,

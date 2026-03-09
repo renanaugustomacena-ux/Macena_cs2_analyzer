@@ -238,6 +238,15 @@ class RoleThresholdStore:
 
     def persist_to_db(self, db_session) -> None:
         """Persist learned thresholds to database for recovery across restarts."""
+        # P-RT-03: Validate consistency before persisting to prevent saving
+        # invalid thresholds (negative, >1.0, or insufficient samples).
+        if not self.validate_consistency():
+            logger.error(
+                "P-RT-03: Threshold consistency check failed — refusing to persist "
+                "invalid thresholds to database."
+            )
+            return
+
         from sqlmodel import select
 
         from Programma_CS2_RENAN.backend.storage.db_models import RoleThresholdRecord

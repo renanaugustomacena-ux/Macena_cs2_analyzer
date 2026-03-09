@@ -382,6 +382,11 @@ class EngagementRangeAnalyzer:
         Returns:
             Dict with profile, observations, and annotated kills.
         """
+        # O-03: Validate map_name before processing — missing metadata silently
+        # produces "Unknown Position" for all kills, making analysis worthless.
+        if not map_name:
+            logger.warning("O-03: analyze_match_engagements called without map_name")
+
         distances = []
         annotated = []
 
