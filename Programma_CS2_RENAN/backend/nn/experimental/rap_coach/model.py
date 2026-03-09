@@ -20,6 +20,7 @@ class RAPCoachModel(nn.Module):
 
     def __init__(self, metadata_dim=METADATA_DIM, output_dim=10, heuristic_config=None):
         super().__init__()
+        self.metadata_dim = metadata_dim
 
         # Resolve L1 sparsity weight from HeuristicConfig or default
         if heuristic_config is not None:
@@ -53,7 +54,15 @@ class RAPCoachModel(nn.Module):
         )
 
     def forward(self, view_frame, map_frame, motion_diff, metadata, skill_vec=None, hidden_state=None):
-        # x metadata shape: (batch, seq_len, metadata_dim)
+        # P-X-02: Input shape assertions — catch misaligned tensors before they
+        # propagate into cryptic LSTM/CNN errors.
+        assert metadata.ndim == 3 and metadata.shape[-1] == self.metadata_dim, (
+            f"P-X-02: metadata shape {metadata.shape}, "
+            f"expected (B, seq_len, {self.metadata_dim})"
+        )
+        assert view_frame.ndim in (4, 5), (
+            f"P-X-02: view_frame must be 4D (B,C,H,W) or 5D (B,T,C,H,W), got {view_frame.ndim}D"
+        )
         # NN-40: hidden_state allows persisting recurrent state across forward calls
         batch_size, seq_len, _ = metadata.shape
 

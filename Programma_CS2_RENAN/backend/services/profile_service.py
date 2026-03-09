@@ -9,7 +9,7 @@ from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import PlayerProfile
 # F5-22: API keys are loaded from env vars / keyring in config.py — not hard-coded.
 # Verify STEAM_API_KEY and FACEIT_API_KEY are set via environment or secrets manager, never in source.
-from Programma_CS2_RENAN.core.config import CS2_PLAYER_NAME, FACEIT_API_KEY, STEAM_API_KEY
+from Programma_CS2_RENAN.core.config import get_credential, get_setting
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.profile_service")  # F5-33: structured logging
@@ -17,8 +17,8 @@ logger = get_logger("cs2analyzer.profile_service")  # F5-33: structured logging
 
 class ProfileService:
     def __init__(self):
-        self.steam_key = STEAM_API_KEY
-        self.faceit_key = FACEIT_API_KEY
+        self.steam_key = get_credential("STEAM_API_KEY")
+        self.faceit_key = get_credential("FACEIT_API_KEY")
 
     def fetch_steam_stats(self, steam_id: str) -> Dict[str, Any]:
         """Fetches stats with connection safety and timeouts."""
@@ -45,7 +45,7 @@ class ProfileService:
             return {"status": "error", "steam": steam_data, "faceit": faceit_data}
 
         profile = PlayerProfile(
-            player_name=CS2_PLAYER_NAME,
+            player_name=get_setting("CS2_PLAYER_NAME", ""),
         )
 
         _persist_profile_update(profile)
@@ -109,7 +109,7 @@ def _persist_profile_update(profile):
     # F5-21: get_session() context manager auto-commits on clean exit and
     # rolls back on exception — explicit session.commit() is not required here.
     with db.get_session() as session:
-        stmt = select(PlayerProfile).where(PlayerProfile.player_name == CS2_PLAYER_NAME)
+        stmt = select(PlayerProfile).where(PlayerProfile.player_name == get_setting("CS2_PLAYER_NAME", ""))
         existing = session.exec(stmt).first()
         _update_or_add_profile(session, existing, profile)
 

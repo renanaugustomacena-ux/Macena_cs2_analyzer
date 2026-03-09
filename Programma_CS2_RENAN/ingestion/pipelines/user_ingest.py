@@ -7,7 +7,7 @@ from Programma_CS2_RENAN.backend.processing.feature_engineering.base_features im
 )
 from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import PlayerMatchStats
-from Programma_CS2_RENAN.core.config import CS2_PLAYER_NAME
+from Programma_CS2_RENAN.core.config import get_setting
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.user_ingest")
@@ -39,7 +39,7 @@ def _map_and_pipeline_user(demo_path, rounds_df, db_manager, processed_dir):
     # R3-04: Use .stem (without .dem extension) for consistent demo_name normalization
     demo_name = demo_path.stem
     match_stats = PlayerMatchStats(
-        player_name=CS2_PLAYER_NAME, demo_name=demo_name, is_pro=False, **match_stats_dict
+        player_name=get_setting("CS2_PLAYER_NAME", ""), demo_name=demo_name, is_pro=False, **match_stats_dict
     )
     db_manager.upsert(match_stats)
     _trigger_ml_pipeline(db_manager, demo_name, match_stats_dict)
@@ -51,7 +51,7 @@ def _map_and_pipeline_user(demo_path, rounds_df, db_manager, processed_dir):
 def _trigger_ml_pipeline(db_manager, demo_name, stats):
     from Programma_CS2_RENAN.run_ingestion import run_ml_pipeline
 
-    run_ml_pipeline(db_manager, CS2_PLAYER_NAME, demo_name, stats)
+    run_ml_pipeline(db_manager, get_setting("CS2_PLAYER_NAME", ""), demo_name, stats)
 
 
 def _archive_user_demo(demo_path, processed_dir):

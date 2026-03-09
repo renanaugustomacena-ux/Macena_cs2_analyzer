@@ -192,10 +192,16 @@ class TensorFactory:
         team_channel = self._normalize(team_channel)
         player_channel = self._normalize(player_channel)
 
-        return torch.tensor(
+        result = torch.tensor(
             np.stack([enemy_channel, team_channel, player_channel], axis=0),
             dtype=torch.float32,
         )
+        # P-X-02: Shape assertion on generated map tensor
+        assert result.shape == (3, resolution, resolution), (
+            f"P-X-02: map_tensor shape {result.shape}, "
+            f"expected (3, {resolution}, {resolution})"
+        )
+        return result
 
     def generate_view_tensor(
         self,
@@ -259,7 +265,13 @@ class TensorFactory:
         safe_zone = np.clip(1.0 - fov_mask - danger_zone, 0, 1)
         view_tensor = np.stack([fov_mask, danger_zone, safe_zone], axis=0)
 
-        return torch.tensor(view_tensor, dtype=torch.float32)
+        result = torch.tensor(view_tensor, dtype=torch.float32)
+        # P-X-02: Shape assertion on generated view tensor
+        assert result.shape == (3, resolution, resolution), (
+            f"P-X-02: view_tensor shape {result.shape}, "
+            f"expected (3, {resolution}, {resolution})"
+        )
+        return result
 
     def generate_motion_tensor(
         self,
@@ -308,10 +320,16 @@ class TensorFactory:
         # --- Ch2: Crosshair movement ---
         crosshair_ch = self._build_crosshair_channel(curr_tick, prev_tick, meta, resolution)
 
-        return torch.tensor(
+        result = torch.tensor(
             np.stack([trajectory_ch, velocity_ch, crosshair_ch], axis=0),
             dtype=torch.float32,
         )
+        # P-X-02: Shape assertion on generated motion tensor
+        assert result.shape == (3, resolution, resolution), (
+            f"P-X-02: motion_tensor shape {result.shape}, "
+            f"expected (3, {resolution}, {resolution})"
+        )
+        return result
 
     def generate_all_tensors(
         self,

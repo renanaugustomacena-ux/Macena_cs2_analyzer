@@ -10,19 +10,44 @@ MAX_RETRIES = 3
 BACKOFF_DELAYS = [1, 2, 4]  # seconds
 
 
-def _request_with_retry(url, params, timeout=5):
-    """HTTP GET with exponential backoff retry for transient failures."""
+def _request_with_retry(url, params, timeout=5, max_total_timeout=20):
+    """HTTP GET with exponential backoff retry for transient failures.
+
+    Args:
+        url: Target URL.
+        params: Query parameters dict.
+        timeout: Per-request socket timeout in seconds.
+        max_total_timeout: DS-03 — hard ceiling (monotonic clock) for the
+            entire retry loop. Prevents unbounded blocking when multiple
+            retries compound with backoff delays.
+    """
+    deadline = time.monotonic() + max_total_timeout
     last_exc = None
     for attempt in range(MAX_RETRIES):
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            app_logger.warning(
+                "Steam API total timeout (%ds) exceeded before attempt %d",
+                max_total_timeout,
+                attempt + 1,
+            )
+            break
         try:
-            resp = requests.get(url, params=params, timeout=timeout)
+            # Per-request timeout capped to remaining budget
+            effective_timeout = min(timeout, remaining)
+            resp = requests.get(url, params=params, timeout=effective_timeout)
             resp.raise_for_status()
             return resp
         except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
             last_exc = e
             delay = BACKOFF_DELAYS[attempt] if attempt < len(BACKOFF_DELAYS) else BACKOFF_DELAYS[-1]
+            # Cap sleep to remaining time budget
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                break
+            delay = min(delay, remaining)
             app_logger.warning(
-                "Steam API attempt %d/%d failed: %s — retrying in %ds",
+                "Steam API attempt %d/%d failed: %s — retrying in %.1fs",
                 attempt + 1,
                 MAX_RETRIES,
                 e,

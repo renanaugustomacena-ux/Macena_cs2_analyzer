@@ -270,11 +270,21 @@ class CoachingService:
                         self.db_manager, player_name, demo_name, corrections
                     )
                 else:
+                    # C-01: No deviations available — save a generic insight
+                    # so the user is never left with zero coaching output.
                     logger.warning(
-                        "COPER fallback: no deviations data — "
-                        "no coaching generated for %s on %s",
+                        "COPER fallback: no deviations — saving generic insight for %s on %s",
                         player_name,
                         demo_name,
+                    )
+                    _save_generic_insight(
+                        self.db_manager, player_name, demo_name,
+                        title="General Performance Review",
+                        message=(
+                            "Detailed coaching data was unavailable for this demo. "
+                            "Focus on fundamentals: crosshair placement, utility timing, "
+                            "and trade positioning."
+                        ),
                     )
 
     def _format_coper_message(self, advice, baseline_note: str = "") -> str:
@@ -488,10 +498,21 @@ class CoachingService:
             logger = get_logger("cs2analyzer.coaching")
             logger.exception("Hybrid coaching failed")
 
-            # Fallback to traditional — but only if we have deviations
+            # C-01: Fallback to Traditional — save a generic insight so the
+            # user is never left with zero coaching output from this pipeline.
             logger.warning(
-                f"Hybrid coaching fallback: no deviations data — "
-                f"no coaching generated for {player_name} on {demo_name}"
+                "Hybrid coaching fallback → Traditional for %s on %s",
+                player_name,
+                map_name,
+            )
+            _save_generic_insight(
+                self.db_manager, player_name, demo_name,
+                title="General Performance Review",
+                message=(
+                    "The advanced coaching engine encountered an issue. "
+                    "Review your recent demos for positioning, utility usage, "
+                    "and trade opportunities relative to your usual performance."
+                ),
             )
 
     def _enhance_with_rag(
@@ -705,6 +726,22 @@ def _create_insight_obj(p_name, d_name, c):
         message=polished,
         focus_area=c["feature"],
     )
+
+
+def _save_generic_insight(db_manager, player_name: str, demo_name: str,
+                          title: str, message: str):
+    """Persist a fallback coaching insight when the primary pipeline fails (C-01)."""
+    insight = CoachingInsight(
+        player_name=player_name,
+        demo_name=demo_name,
+        title=title,
+        severity="Info",
+        message=message,
+        focus_area="general",
+    )
+    with db_manager.get_session() as session:
+        session.add(insight)
+        session.commit()
 
 
 _coaching_service: CoachingService = None  # type: ignore[assignment]
