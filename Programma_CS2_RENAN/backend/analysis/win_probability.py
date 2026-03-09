@@ -127,8 +127,10 @@ class WinProbabilityPredictor:
                 logger.warning("Could not load model: %s. Using heuristic.", e)
 
         if not self._checkpoint_loaded:
-            logger.warning(
-                "AC-11-01: No checkpoint loaded — predictions use random weights. "
+            # W-02: Escalate to error-level so untrained inference is clearly visible
+            # in logs. Callers can check _checkpoint_loaded to gate predictions.
+            logger.error(
+                "W-02: No checkpoint loaded — predictions use random weights. "
                 "Heuristic adjustments will dominate. Train or provide a model_path."
             )
 
@@ -172,8 +174,8 @@ class WinProbabilityPredictor:
                 state.alive_players / 5,
                 state.enemy_alive / 5,
                 (state.alive_players - state.enemy_alive) / 5,
-                # Utility (normalized to 10)
-                state.utility_remaining / 10,
+                # W-03: Utility normalized to 5 (CS2 max: 2 smokes + 2 flashes + 1 HE)
+                state.utility_remaining / 5,
                 # Map control
                 state.map_control_pct,
                 # Time (normalized to 115s)

@@ -72,19 +72,25 @@ class BlindSpotDetector:
             if not state:
                 continue
 
-            # Get optimal action from game tree
-            root = search.build_tree(state, depth=2)
-            optimal, optimal_value = search.get_best_action(root)
+            # B-01: Wrap game tree analysis in try-except — malformed states
+            # (missing keys, invalid types) should skip the round, not crash.
+            try:
+                # Get optimal action from game tree
+                root = search.build_tree(state, depth=2)
+                optimal, optimal_value = search.get_best_action(root)
 
-            if optimal == actual:
-                continue  # Player chose optimally
+                if optimal == actual:
+                    continue  # Player chose optimally
 
-            # Classify situation
-            situation = self._classify_situation(state)
+                # Classify situation
+                situation = self._classify_situation(state)
 
-            # Compute impact: how much worse was the actual choice
-            actual_value = self._evaluate_action(search, state, actual)
-            impact = max(0.0, optimal_value - actual_value)
+                # Compute impact: how much worse was the actual choice
+                actual_value = self._evaluate_action(search, state, actual)
+                impact = max(0.0, optimal_value - actual_value)
+            except Exception as e:
+                logger.debug("B-01: Blind spot analysis skipped for round: %s", e)
+                continue
 
             mismatches[situation].append(
                 {

@@ -161,7 +161,16 @@ class RoleThresholdStore:
             logger.warning("learn_from_pro_data called with empty data - no learning performed")
             return
 
-        logger.info("Learning thresholds from %s pro player records", len(pro_stats))
+        # P-RT-02: Count unique players, not total data points, for sample_count.
+        # Same player across tournaments should not inflate statistical confidence.
+        _unique_players = len({
+            s.get("player_id") or s.get("player_name", id(s))
+            for s in pro_stats
+        })
+        logger.info(
+            "Learning thresholds from %d pro player records (%d unique players)",
+            len(pro_stats), _unique_players,
+        )
 
         # Calculate thresholds using percentile analysis
         now = datetime.now()
@@ -176,7 +185,7 @@ class RoleThresholdStore:
             self._thresholds["awp_kill_ratio"].value = float(
                 np.percentile(awp_ratios, _ROLE_THRESHOLD_PERCENTILE)
             )
-            self._thresholds["awp_kill_ratio"].sample_count = len(awp_ratios)
+            self._thresholds["awp_kill_ratio"].sample_count = _unique_players
             self._thresholds["awp_kill_ratio"].last_updated = now
             self._thresholds["awp_kill_ratio"].source = "hltv"
 
@@ -188,7 +197,7 @@ class RoleThresholdStore:
             self._thresholds["entry_rate"].value = float(
                 np.percentile(entry_rates, _ROLE_THRESHOLD_PERCENTILE)
             )
-            self._thresholds["entry_rate"].sample_count = len(entry_rates)
+            self._thresholds["entry_rate"].sample_count = _unique_players
             self._thresholds["entry_rate"].last_updated = now
             self._thresholds["entry_rate"].source = "hltv"
 
@@ -198,7 +207,7 @@ class RoleThresholdStore:
             self._thresholds["assist_rate"].value = float(
                 np.percentile(assist_rates, _ROLE_THRESHOLD_PERCENTILE)
             )
-            self._thresholds["assist_rate"].sample_count = len(assist_rates)
+            self._thresholds["assist_rate"].sample_count = _unique_players
             self._thresholds["assist_rate"].last_updated = now
             self._thresholds["assist_rate"].source = "hltv"
 
@@ -210,7 +219,7 @@ class RoleThresholdStore:
             self._thresholds["survival_rate"].value = float(
                 np.percentile(survival_rates, _ROLE_THRESHOLD_PERCENTILE)
             )
-            self._thresholds["survival_rate"].sample_count = len(survival_rates)
+            self._thresholds["survival_rate"].sample_count = _unique_players
             self._thresholds["survival_rate"].last_updated = now
             self._thresholds["survival_rate"].source = "hltv"
 
@@ -220,7 +229,7 @@ class RoleThresholdStore:
             self._thresholds["solo_kill_rate"].value = float(
                 np.percentile(solo_rates, _ROLE_THRESHOLD_PERCENTILE)
             )
-            self._thresholds["solo_kill_rate"].sample_count = len(solo_rates)
+            self._thresholds["solo_kill_rate"].sample_count = _unique_players
             self._thresholds["solo_kill_rate"].last_updated = now
             self._thresholds["solo_kill_rate"].source = "hltv"
 

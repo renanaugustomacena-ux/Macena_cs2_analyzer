@@ -112,9 +112,14 @@ class DeceptionAnalyzer:
 
         # For each flash, find the first blind tick >= flash_tick
         idx = np.searchsorted(blind_ticks, flash_ticks, side="left")
-        # A flash is "effective" if the nearest blind tick is within the window
-        effective_mask = (idx < len(blind_ticks)) & (
-            blind_ticks[np.minimum(idx, len(blind_ticks) - 1)] <= flash_ticks + FLASH_BLIND_WINDOW_TICKS
+        # D-01: Build mask in two steps to avoid indexing blind_ticks with
+        # clamped OOB indices (which silently compares the last element).
+        in_bounds = idx < len(blind_ticks)
+        # Only index valid positions; clamped values for OOB are irrelevant
+        # because in_bounds already masks them out.
+        safe_idx = np.where(in_bounds, idx, 0)
+        effective_mask = in_bounds & (
+            blind_ticks[safe_idx] <= flash_ticks + FLASH_BLIND_WINDOW_TICKS
         )
         effective_flashes = int(np.sum(effective_mask))
 

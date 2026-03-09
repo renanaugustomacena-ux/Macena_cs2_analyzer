@@ -49,11 +49,12 @@ def evaluate_adjustments(model, X_sample, role_id=None):
             with torch.no_grad():
                 return model(t).numpy()
 
-        # WARNING (F3-18): Zero-vector baseline biases SHAP attributions toward features with
-        # non-zero values — features like position (pos_x, pos_y) will appear more important
-        # than they actually are. Replace np.zeros with the mean of a representative training
-        # sample for calibrated explanations.
-        explainer = shap.KernelExplainer(model_wrapper, np.zeros((1, X_tensor.shape[1])))
+        # NN-EV-01: Use sample mean as SHAP baseline instead of zero-vector.
+        # Zero-vector inflates importance of features with non-zero values
+        # (e.g., position always > 0). The sample mean centres attributions
+        # relative to a realistic reference point.
+        baseline = np.mean(X_sample, axis=0, keepdims=True) if len(X_sample) > 1 else np.zeros((1, X_tensor.shape[1]))
+        explainer = shap.KernelExplainer(model_wrapper, baseline)
         shap_values = explainer.shap_values(X_tensor.numpy())
     else:
         logger.warning("shap not installed — SHAP explanations unavailable. Install with: pip install shap")

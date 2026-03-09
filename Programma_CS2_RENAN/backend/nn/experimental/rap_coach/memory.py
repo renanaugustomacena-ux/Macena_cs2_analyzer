@@ -53,6 +53,9 @@ class RAPMemory(nn.Module):
         # shaped via gradient descent during training. Until sufficient training
         # on real CS2 data occurs, attention will be near-uniform across all slots.
         # Monitor attention entropy in TensorBoard to verify pattern formation.
+        # NN-MEM-01: Track whether Hopfield has been trained (via checkpoint load or
+        # gradient updates). Until trained, forward() bypasses associative recall.
+        self._hopfield_trained = False
         self.hopfield = Hopfield(
             input_size=hidden_dim,
             output_size=hidden_dim,
@@ -81,8 +84,12 @@ class RAPMemory(nn.Module):
         ltc_out, hidden = self.ltc(x, hidden)
 
         # Associative Recall: Retrieve tactical prototypes
-        # Hopfield layer acts on the hidden states
-        mem_out = self.hopfield(ltc_out)
+        # NN-MEM-01: Skip Hopfield if not yet trained — random prototypes produce
+        # near-uniform attention that adds noise rather than signal.
+        if self._hopfield_trained:
+            mem_out = self.hopfield(ltc_out)
+        else:
+            mem_out = torch.zeros_like(ltc_out)
 
         # Residual Combination: Dynamics + Memory
         combined_state = ltc_out + mem_out
@@ -90,4 +97,16 @@ class RAPMemory(nn.Module):
         # We use the full sequence for training, but the last tick for decision
         belief = self.belief_head(combined_state)
 
+        # NN-MEM-01: After first training forward pass, mark Hopfield as active
+        if self.training and not self._hopfield_trained:
+            self._hopfield_trained = True
+            logger.debug("NN-MEM-01: Hopfield marked as trained after first training forward")
+
         return combined_state, belief, hidden
+
+    def load_state_dict(self, state_dict, strict=True, assign=False):
+        """Override to mark Hopfield as trained when loading a checkpoint."""
+        result = super().load_state_dict(state_dict, strict=strict, assign=assign)
+        self._hopfield_trained = True
+        logger.debug("NN-MEM-01: Hopfield marked as trained via checkpoint load")
+        return result

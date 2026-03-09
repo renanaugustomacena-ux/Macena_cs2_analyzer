@@ -195,7 +195,12 @@ def get_death_estimator() -> DeathProbabilityEstimator:
     if _death_estimator is None:
         with _death_estimator_lock:
             if _death_estimator is None:
-                _death_estimator = DeathProbabilityEstimator()
+                try:
+                    _death_estimator = DeathProbabilityEstimator()
+                except Exception:
+                    # A-02: Log and re-raise — don't leave singleton half-initialised
+                    logger.exception("A-02: DeathProbabilityEstimator init failed")
+                    raise
     return _death_estimator
 
 
@@ -351,12 +356,17 @@ class AdaptiveBeliefCalibrator:
             coeffs = np.polyfit(ages, log_rates, 1)
             fitted_lambda = -coeffs[0]
 
+            # A-01: Guard against NaN/Inf from degenerate polyfit input
+            if not np.isfinite(fitted_lambda):
+                logger.warning(
+                    "A-01: Fitted lambda is non-finite (%s), keeping default", fitted_lambda
+                )
+                return None
+
             # Apply safety bounds
             fitted_lambda = max(self._DECAY_BOUNDS[0], min(self._DECAY_BOUNDS[1], fitted_lambda))
 
-            logger.info(
-                "Threat decay lambda calibrated: %s (was 0.1)", format(fitted_lambda, ".4f")
-            )
+            logger.info("Threat decay lambda calibrated: %.4f (was 0.1)", fitted_lambda)
             return fitted_lambda
         except Exception as e:
             logger.warning("Decay calibration failed: %s", e)

@@ -100,7 +100,11 @@ class RAPCommunication:
                 scores = layer_outputs.squeeze().cpu().numpy()
             else:
                 scores = np.array([0.1])
-            top_idx = int(np.argmax(scores)) if scores.ndim > 0 else 0
+            # NN-COM-01: Ensure scores is at least 1D before argmax.
+            # squeeze() can reduce to 0D scalar when output has shape (1,).
+            if scores.ndim == 0:
+                scores = np.array([scores.item()])
+            top_idx = int(np.argmax(scores))
 
             topics = ["positioning", "mechanics", "strategy"]
             topic = topics[top_idx % len(topics)]

@@ -160,7 +160,12 @@ class ChronovisorScanner:
                 model.eval()
             return model
         except Exception as e:
-            logger.exception("Chronovisor Model Load Error")
+            # NN-CV-01: Include exception details for actionable diagnostics
+            logger.exception(
+                "NN-CV-01: Chronovisor model load failed: %s: %s",
+                type(e).__name__, e,
+            )
+            self._last_model_error = str(e)
             return None
 
     def scan_match(self, match_id: int) -> ScanResult:
@@ -170,10 +175,13 @@ class ChronovisorScanner:
             ScanResult with success/failure status — never silently empty.
         """
         if not self.model:
+            # NN-CV-01: Include stored error detail from _load_model() failure
+            detail = getattr(self, "_last_model_error", "unknown cause")
             return ScanResult(
                 critical_moments=[],
                 success=False,
-                error_message="Model not loaded. Possible causes: model file missing, "
+                error_message=f"Model not loaded ({detail}). "
+                "Possible causes: model file missing, "
                 "architecture mismatch, or maturity gate not passed.",
                 model_loaded=False,
                 ticks_analyzed=0,
@@ -187,8 +195,18 @@ class ChronovisorScanner:
                     select(PlayerTickState)
                     .where(PlayerTickState.match_id == match_id)
                     .order_by(PlayerTickState.tick)
-                    .limit(_MAX_TICKS_PER_SCAN)
+                    .limit(_MAX_TICKS_PER_SCAN + 1)  # NN-CV-02: fetch one extra to detect truncation
                 ).all()
+
+            # NN-CV-02: Detect and warn about tick truncation
+            _is_truncated = len(ticks) > _MAX_TICKS_PER_SCAN
+            if _is_truncated:
+                logger.warning(
+                    "NN-CV-02: Match %d has >%d ticks — analysis truncated. "
+                    "Late-match critical moments may be missed.",
+                    match_id, _MAX_TICKS_PER_SCAN,
+                )
+                ticks = ticks[:_MAX_TICKS_PER_SCAN]
 
             if not ticks:
                 return ScanResult(
@@ -311,7 +329,16 @@ class ChronovisorScanner:
                         max_idx = j
                     j += 1
 
-                peak_tick = ticks[max_idx + scale.lag]
+                # NN-CV-03: Bounds-check before indexing into ticks array
+                peak_idx = max_idx + scale.lag
+                if peak_idx >= len(ticks):
+                    logger.debug(
+                        "NN-CV-03: peak_idx %d out of bounds (ticks=%d), skipping moment",
+                        peak_idx, len(ticks),
+                    )
+                    i = j
+                    continue
+                peak_tick = ticks[peak_idx]
                 context_radius = scale.lag  # Show context proportional to scale
                 start_tick = peak_tick - context_radius
                 end_tick = peak_tick + context_radius
