@@ -156,7 +156,7 @@ jobs:
           python -m pip install --upgrade pip
           pip install bandit
 
-      - name: Run Bandit security linter
+      - name: Run Bandit security linter (full report)
         run: >
           bandit -r Programma_CS2_RENAN/
           --severity-level medium
@@ -165,6 +165,14 @@ jobs:
           -o bandit-report.json
           --exclude Programma_CS2_RENAN/tests,external_analysis
           || true
+
+      - name: Fail on HIGH-severity Bandit findings
+        run: >
+          bandit -r Programma_CS2_RENAN/
+          --severity-level high
+          --confidence-level high
+          --exclude Programma_CS2_RENAN/tests,external_analysis
+          -f screen
 
       - name: Check for hardcoded secrets
         shell: bash
