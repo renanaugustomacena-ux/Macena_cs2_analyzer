@@ -196,9 +196,11 @@ def get_adaptive_signatures(map_name: Optional[str] = None) -> Dict[PlayerRole, 
         return sigs
 
     # confidence_mult in [0.5, 1.0]; lower = more drift
-    # Scale signature values: reduce stat expectations when meta is chaotic
+    # P-RF-01: Scale signature values UP to widen tolerance when meta is chaotic.
+    # Higher baselines → player deviations are larger → classification becomes
+    # more conservative (lower confidence) rather than mis-classifying.
     if confidence_mult < 0.85:
-        scale = confidence_mult  # e.g. 0.7 → shrink values by 30%
+        scale = 2.0 - confidence_mult  # e.g. 0.7 → 1.3 (widens by 30%)
         for role_sigs in sigs.values():
             for key in role_sigs:
                 role_sigs[key] *= scale

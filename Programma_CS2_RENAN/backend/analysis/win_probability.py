@@ -203,14 +203,13 @@ class WinProbabilityPredictor:
         elif player_diff <= -3:
             prob = min(prob, 0.15)
 
-        # NOTE: prob may transiently exceed 1.0 here; clamped to [0,1] at the return statement.
-        # Do not add logic between here and the clamp.
-        # Bomb planted adjustments
+        # W-01: Bomb planted adjustments — additive to stay within [0, 1]
+        # at every intermediate step (no transient overflow).
         if state.bomb_planted:
             if not state.is_ct:
-                prob *= 1.2  # T advantage
+                prob = min(prob + 0.10, 1.0)  # T advantage
             else:
-                prob *= 0.85  # CT disadvantage
+                prob = max(prob - 0.10, 0.0)  # CT disadvantage
 
         # Economy heuristics (Fallback for untrained models)
         econ_diff = state.team_economy - state.enemy_economy

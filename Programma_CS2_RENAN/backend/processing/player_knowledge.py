@@ -40,6 +40,10 @@ HEARING_RANGE_GUNFIRE = 2000.0
 HEARING_RANGE_FOOTSTEP = 1000.0
 """World units within which footsteps are audible."""
 
+# P-PK-02: Hard cap on tracked enemies in memory dict.
+# CS2 is 5v5 so max 5 enemies; 10 allows for edge cases in parsed data.
+MAX_TRACKED_ENEMIES = 10
+
 # Backward-compatible alias (M-08)
 MEMORY_DECAY_TAU = MEMORY_DECAY_TAU_TICKS
 
@@ -421,6 +425,11 @@ class PlayerKnowledgeBuilder:
             enemies_in_fov.sort(key=lambda e: e[4])
             for name, ex, ey, ez, _ in enemies_in_fov[:our_vis_count]:
                 enemy_last_seen[name] = (ex, ey, ez, hist_tick)
+
+            # P-PK-02: Evict oldest entry if dict exceeds cap
+            if len(enemy_last_seen) > MAX_TRACKED_ENEMIES:
+                oldest_key = min(enemy_last_seen, key=lambda k: enemy_last_seen[k][3])
+                del enemy_last_seen[oldest_key]
 
         # Convert to LastKnownEnemy with decay
         for name, (ex, ey, ez, last_tick) in enemy_last_seen.items():

@@ -75,14 +75,24 @@ class KnowledgeEmbedder:
             return self._fallback_embed(text)
 
     def _fallback_embed(self, text: str) -> np.ndarray:
-        """Simple fallback embedding using deterministic hashing."""
+        """Bag-of-words hash-projection fallback (R-02).
+
+        Hashes each word to a dimension, producing sparse-then-normalized vectors.
+        Texts sharing words get nonzero cosine similarity, unlike the previous
+        seed-based random approach where semantically similar texts were orthogonal.
+        """
         import hashlib
 
-        # Create deterministic embedding from text (hashlib is session-stable unlike hash())
-        digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
-        seed = int(digest[:8], 16)
-        rng = np.random.RandomState(seed)
-        return rng.randn(self.embedding_dim).astype(np.float32)
+        vec = np.zeros(self.embedding_dim, dtype=np.float32)
+        for word in text.lower().split():
+            h = int(hashlib.md5(word.encode()).hexdigest()[:8], 16)
+            idx = h % self.embedding_dim
+            sign = 1.0 if (h // self.embedding_dim) % 2 == 0 else -1.0
+            vec[idx] += sign
+        norm = np.linalg.norm(vec)
+        if norm > 0:
+            vec /= norm
+        return vec
 
     def check_embedding_compatibility(self, stored_dim: int) -> bool:
         """
