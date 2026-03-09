@@ -58,6 +58,27 @@ class JEPATrainer:
         2. Raw feature negatives (from TrainingOrchestrator._prepare_batch) — shape (B, N, METADATA_DIM)
            These are auto-detected by dimension mismatch and encoded via target_encoder.
         """
+        # NN-TR-03: Validate input tensor shapes before forward pass
+        if x_context.ndim != 3:
+            raise ValueError(
+                f"NN-TR-03: x_context must be 3D (B, seq_len, input_dim), got {x_context.ndim}D"
+            )
+        if x_target.ndim != 3:
+            raise ValueError(
+                f"NN-TR-03: x_target must be 3D (B, seq_len, input_dim), got {x_target.ndim}D"
+            )
+        if x_context.shape[0] != x_target.shape[0]:
+            raise ValueError(
+                f"NN-TR-03: batch size mismatch: context={x_context.shape[0]}, target={x_target.shape[0]}"
+            )
+
+        # NN-JT-03: Ensure input tensors are on the model's device
+        device = next(self.model.parameters()).device
+        x_context = x_context.to(device)
+        x_target = x_target.to(device)
+        if negatives is not None:
+            negatives = negatives.to(device)
+
         self.model.train()
         self.optimizer.zero_grad()
 
@@ -118,9 +139,19 @@ class JEPATrainer:
 
             # In-batch negatives: encode all targets once, then exclude self (NN-35 fix)
             batch_size = x_target.size(0)
+
+            # NN-JT-01: In-batch negatives require batch_size > 1 (can't exclude self
+            # from a single-element batch). Skip training on degenerate batches.
+            if batch_size < 2:
+                logger.debug("NN-JT-01: Skipping batch with size %d (need >= 2 for negatives)", batch_size)
+                continue
+
             with torch.no_grad():
                 all_encoded = self.model.target_encoder(x_target).mean(dim=1)  # [B, latent]
 
+            # NN-TR-01: O(B²) negative construction — each sample excludes itself.
+            # For typical batch sizes (32–128) this is fast. For B > 256 consider
+            # vectorised masking: mask = ~torch.eye(B, dtype=bool, device=device)
             indices = torch.arange(batch_size, device=device)
             negatives_tensor = torch.stack(
                 [all_encoded[indices != i] for i in range(batch_size)]
@@ -132,6 +163,10 @@ class JEPATrainer:
 
         # Step scheduler once per epoch (not per batch)
         self.scheduler.step()
+
+        # NN-TR-02: Warn if dataloader was empty (no batches processed)
+        if count == 0:
+            logger.warning("NN-TR-02: train_epoch completed with 0 batches — dataloader may be empty")
 
         return total_loss / max(1, count)
 
@@ -258,10 +293,13 @@ class JEPATrainer:
                     batch_labels.append(torch.full((16,), 0.5))
             concept_labels = torch.stack(batch_labels).to(x_context.device)
         else:
-            # Legacy heuristic fallback (has label leakage — logged once)
+            # NN-JT-02: Legacy heuristic fallback — label leakage risk.
+            # Escalated from warning to error-level because heuristic labels derive
+            # directly from input features, allowing the model to shortcut learning.
             if not getattr(self, "_concept_label_warning_logged", False):
-                logger.warning(
-                    "VL-JEPA concept alignment using heuristic labels (label leakage). "
+                logger.error(
+                    "NN-JT-02: VL-JEPA concept alignment using heuristic labels (label leakage). "
+                    "Model may learn input reconstruction rather than coaching concepts. "
                     "Provide RoundStats data for outcome-based labeling."
                 )
                 self._concept_label_warning_logged = True

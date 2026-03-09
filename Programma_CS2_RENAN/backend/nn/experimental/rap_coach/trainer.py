@@ -20,13 +20,18 @@ class RAPTrainer:
     LOSS_WEIGHT_SPARSITY = 1.0
     LOSS_WEIGHT_POSITION = 1.0
 
+    # NN-TR-02b: Z-axis penalty weight for position loss. Verticality errors in CS2
+    # are disproportionately impactful (wrong floor = instant death), so Z-axis MSE
+    # is penalised 2× relative to X/Y. (Task 2.17.1: Strict verticality enforcement)
+    Z_AXIS_PENALTY_WEIGHT = 2.0
+
     def __init__(self, model: RAPCoachModel, lr=1e-4):
         self.model = model
         self.optimizer = optim.AdamW(model.parameters(), lr=lr, weight_decay=1e-4)
         self.criterion_strat = nn.MSELoss()  # For strategy optimization
         self.criterion_val = nn.MSELoss()  # For pedagogical evaluation
         self.criterion_pos = nn.MSELoss()  # For positioning (Optimal Shadow)
-        self.z_axis_penalty_weight = 2.0  # Task 2.17.1: Strict verticality enforcement
+        self.z_axis_penalty_weight = self.Z_AXIS_PENALTY_WEIGHT
 
     def train_step(self, batch):
         """

@@ -31,12 +31,19 @@ class RAPMemory(nn.Module):
         # Ratio 2:1 ensures enough inter-neurons for expressive wiring.
         # NOTE: changing this invalidates existing checkpoints — version-gated loading required.
         ncp_units = hidden_dim * 2
-        # NN-45: Seed AutoNCP wiring for deterministic, checkpoint-portable connectivity
+        # NN-45 + NN-MEM-02: Seed both numpy and torch RNGs for deterministic,
+        # checkpoint-portable NCP wiring. AutoNCP uses numpy internally, but
+        # downstream LTC init may use torch — save/restore both to isolate side effects.
         import numpy as np
-        rng_state = np.random.get_state()
+        np_rng_state = np.random.get_state()
+        torch_rng_state = torch.random.get_rng_state()
         np.random.seed(42)
-        self.wiring = AutoNCP(units=ncp_units, output_size=hidden_dim)
-        np.random.set_state(rng_state)
+        torch.manual_seed(42)
+        try:
+            self.wiring = AutoNCP(units=ncp_units, output_size=hidden_dim)
+        finally:
+            np.random.set_state(np_rng_state)
+            torch.random.set_rng_state(torch_rng_state)
         self.ltc = LTC(input_dim, self.wiring, batch_first=True)
 
         # 2. Hopfield Layer (Associative Memory)

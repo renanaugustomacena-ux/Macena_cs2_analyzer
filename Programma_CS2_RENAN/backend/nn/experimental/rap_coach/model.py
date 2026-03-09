@@ -97,6 +97,22 @@ class RAPCoachModel(nn.Module):
         context = metadata[:, -1, :]
         prediction, gate_weights = self.strategy(last_hidden, context)
 
+        # NN-RM-01: Validate skill_vec shape before passing to pedagogy adapter.
+        # skill_adapter expects (B, 10) — mismatched shapes produce silent garbage.
+        if skill_vec is not None:
+            if skill_vec.ndim != 2 or skill_vec.shape[1] != 10:
+                logger.warning(
+                    "NN-RM-01: skill_vec shape %s invalid (expected [B, 10]), ignoring",
+                    tuple(skill_vec.shape),
+                )
+                skill_vec = None
+            elif skill_vec.shape[0] != batch_size:
+                logger.warning(
+                    "NN-RM-01: skill_vec batch=%d != metadata batch=%d, ignoring",
+                    skill_vec.shape[0], batch_size,
+                )
+                skill_vec = None
+
         # Evaluation (Value function)
         value_v = self.pedagogy(last_hidden, skill_vec)
 
@@ -127,6 +143,10 @@ class RAPCoachModel(nn.Module):
                 thread-safety issues that arise from caching on self. (F3-07)
         """
         if gate_weights is None:
+            # NN-RM-03: Warn rather than silently returning 0 — callers should
+            # pass out["gate_weights"] from forward(). None means either forward()
+            # wasn't called or strategy layer produced no gates.
+            logger.debug("NN-RM-03: gate_weights is None, returning 0.0 sparsity loss")
             return torch.tensor(0.0)
 
         # L1 Norm: Mean of absolute values

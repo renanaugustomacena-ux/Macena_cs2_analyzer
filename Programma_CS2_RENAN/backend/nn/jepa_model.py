@@ -316,6 +316,15 @@ class JEPACoachingModel(nn.Module):
         Args:
             momentum: EMA decay rate (typically 0.99 - 0.999)
         """
+        # NN-JM-04: Verify target encoder is frozen (requires_grad=False) during EMA.
+        # If unfrozen (e.g. during fine-tuning), EMA would corrupt learned gradients.
+        for param_k in self.target_encoder.parameters():
+            if param_k.requires_grad:
+                raise RuntimeError(
+                    "NN-JM-04: target_encoder has requires_grad=True — "
+                    "EMA update would corrupt gradient-based learning. "
+                    "Call freeze_encoders() or set requires_grad=False first."
+                )
         with torch.no_grad():
             for param_q, param_k in zip(
                 self.context_encoder.parameters(), self.target_encoder.parameters()
@@ -514,6 +523,13 @@ class ConceptLabeler:
     def label_tick(self, features: torch.Tensor) -> torch.Tensor:
         """
         Generate soft concept labels from a single tick's 25-dim features.
+
+        .. warning:: NN-JM-03 — Label Leakage Risk
+            This method derives labels directly from input features (heuristic).
+            Models trained on these labels may learn to reconstruct the input
+            rather than genuine coaching concepts. Prefer ``label_from_round_stats()``
+            which uses outcome-based labels with no leakage. This fallback is
+            retained only for cold-start scenarios where RoundStats are unavailable.
 
         Args:
             features: [25] tensor of normalized features (METADATA_DIM=25).
@@ -903,16 +919,23 @@ class VLJEPACoachingModel(JEPACoachingModel):
         Returns:
             [batch, num_concepts] concept probabilities
         """
-        with torch.no_grad():
-            embeddings = self.context_encoder(x)
-            latent = embeddings.mean(dim=1)
-            projected = self.concept_projector(latent)
-            projected = F.normalize(projected, dim=-1)
+        # NN-JM-02: Ensure eval mode so Dropout layers are disabled during inference.
+        was_training = self.training
+        self.eval()
+        try:
+            with torch.no_grad():
+                embeddings = self.context_encoder(x)
+                latent = embeddings.mean(dim=1)
+                projected = self.concept_projector(latent)
+                projected = F.normalize(projected, dim=-1)
 
-            concept_embs = F.normalize(self.concept_embeddings.weight, dim=-1)
-            logits = torch.mm(projected, concept_embs.t())
-            temp = self.concept_temperature.clamp(min=0.01, max=1.0)
-            return F.softmax(logits / temp, dim=-1)
+                concept_embs = F.normalize(self.concept_embeddings.weight, dim=-1)
+                logits = torch.mm(projected, concept_embs.t())
+                temp = self.concept_temperature.clamp(min=0.01, max=1.0)
+                return F.softmax(logits / temp, dim=-1)
+        finally:
+            if was_training:
+                self.train()
 
 
 def vl_jepa_concept_loss(
@@ -935,6 +958,12 @@ def vl_jepa_concept_loss(
     Returns:
         (total_loss, concept_loss, diversity_loss) tuple
     """
+    # NN-JM-05: Align all tensors to concept_logits device to prevent
+    # RuntimeError when model is on GPU but labels were created on CPU.
+    device = concept_logits.device
+    concept_labels = concept_labels.to(device)
+    concept_embeddings = concept_embeddings.to(device)
+
     # Multi-label BCE: each concept is independently activated
     concept_loss = F.binary_cross_entropy_with_logits(concept_logits, concept_labels)
 
