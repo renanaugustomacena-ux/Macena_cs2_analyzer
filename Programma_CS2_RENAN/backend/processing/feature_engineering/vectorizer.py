@@ -173,6 +173,7 @@ class FeatureExtractor:
         tick_data: Union[Dict[str, Any], Any],
         map_name: Optional[str] = None,
         context: Optional[Dict[str, Any]] = None,
+        _config_override: Optional[Any] = None,
     ) -> np.ndarray:
         """
         Extracts the unified feature vector from tick data.
@@ -185,13 +186,18 @@ class FeatureExtractor:
                      teammates_alive, enemies_alive, team_economy). Features 20-24
                      are first read from tick_data (enriched during ingestion), with
                      fallback to this context dict (DemoFrame at inference).
+            _config_override: P-VEC-03 — pre-snapshotted config for batch consistency.
+                     If provided, bypasses class-level _config entirely.
 
         Returns:
             np.ndarray of shape (METADATA_DIM,) with float32 values
         """
-        # Resolve config: class-level override or built-in defaults (thread-safe read, Bug #6)
-        with FeatureExtractor._config_lock:
-            cfg = FeatureExtractor._config
+        # P-VEC-03: Use override if provided (batch mode), else read class-level config
+        if _config_override is not None:
+            cfg = _config_override
+        else:
+            with FeatureExtractor._config_lock:
+                cfg = FeatureExtractor._config
         if cfg is None:
             from Programma_CS2_RENAN.backend.processing.feature_engineering.base_features import (
                 HeuristicConfig,
@@ -401,22 +407,16 @@ class FeatureExtractor:
         if contexts is None:
             contexts = [None] * len(tick_data_list)
 
-        # Temporarily set config for all extract() calls in this batch,
-        # restoring afterward. This ensures consistency within a batch.
-        original_config = cls._config
-        with cls._config_lock:
-            cls._config = batch_config
-        try:
-            result = np.array(
-                [
-                    FeatureExtractor.extract(t, map_name, ctx)
-                    for t, ctx in zip(tick_data_list, contexts)
-                ],
-                dtype=np.float32,
-            )
-        finally:
-            with cls._config_lock:
-                cls._config = original_config
+        # P-VEC-03: Pass snapshotted config directly to each extract() call
+        # instead of mutating class-level state. This prevents cross-batch
+        # contamination when multiple threads call extract_batch() concurrently.
+        result = np.array(
+            [
+                FeatureExtractor.extract(t, map_name, ctx, _config_override=batch_config)
+                for t, ctx in zip(tick_data_list, contexts)
+            ],
+            dtype=np.float32,
+        )
         return result
 
     @staticmethod

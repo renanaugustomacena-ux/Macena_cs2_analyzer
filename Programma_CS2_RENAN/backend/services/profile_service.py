@@ -48,6 +48,26 @@ class ProfileService:
             player_name=get_setting("CS2_PLAYER_NAME", ""),
         )
 
+        # P-03: Populate profile fields from successful fetches instead of
+        # persisting an empty shell. PlayerProfile has bio/role fields.
+        bio_parts = []
+        if steam_ok:
+            nickname = steam_data.get("nickname")
+            if nickname:
+                bio_parts.append(f"Steam: {nickname}")
+            hours = steam_data.get("playtime_forever")
+            if hours:
+                bio_parts.append(f"{hours:.0f}h CS2")
+        if faceit_ok:
+            elo = faceit_data.get("elo")
+            level = faceit_data.get("level")
+            if elo:
+                bio_parts.append(f"FaceIT Elo: {elo}")
+            if level:
+                bio_parts.append(f"Level {level}")
+        if bio_parts:
+            profile.bio = " | ".join(bio_parts)
+
         _persist_profile_update(profile)
         return {"status": "success", "steam": steam_data, "faceit": faceit_data}
 

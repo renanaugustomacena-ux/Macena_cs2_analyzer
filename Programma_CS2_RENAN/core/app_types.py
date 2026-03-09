@@ -25,6 +25,20 @@ class Team(Enum):
     T = 1
     CT = 2
 
+    def __eq__(self, other):
+        # AT-01: Fail-fast on cross-enum comparison to prevent silent mismatches.
+        if (isinstance(other, Enum)
+                and type(other).__name__ == "Team"
+                and type(other).__module__ != type(self).__module__):
+            raise TypeError(
+                f"AT-01: Cannot compare {type(self).__module__}.Team with "
+                f"{type(other).__module__}.Team — use team_from_demo_frame() to convert"
+            )
+        return Enum.__eq__(self, other)
+
+    def __hash__(self):
+        return Enum.__hash__(self)
+
 
 class PlayerRole(str, Enum):
     """Canonical CS2 player role classification (P3-01).

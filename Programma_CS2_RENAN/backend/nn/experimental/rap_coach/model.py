@@ -63,6 +63,9 @@ class RAPCoachModel(nn.Module):
         assert view_frame.ndim in (4, 5), (
             f"P-X-02: view_frame must be 4D (B,C,H,W) or 5D (B,T,C,H,W), got {view_frame.ndim}D"
         )
+        assert metadata.shape[1] >= 1, (
+            f"NN-RM-02: metadata seq_len must be >= 1, got {metadata.shape[1]}"
+        )
         # NN-40: hidden_state allows persisting recurrent state across forward calls
         batch_size, seq_len, _ = metadata.shape
 

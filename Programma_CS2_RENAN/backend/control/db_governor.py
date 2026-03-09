@@ -82,6 +82,18 @@ class DatabaseGovernor:
         # This is a key governance feature
         return report
 
+    def _run_pragma_quick_check(self) -> bool:
+        """DG-02: Execute PRAGMA quick_check synchronously (internal use only).
+
+        This can block for minutes on large DBs — callers must run in a
+        background thread with a timeout.
+        """
+        with self.db_manager.get_session() as session:
+            from sqlalchemy import text
+
+            res = session.execute(text("PRAGMA quick_check")).scalar()
+            return res == "ok"
+
     def verify_integrity(self, full: bool = False) -> Dict[str, bool]:
         """Verify database connectivity and optionally run full integrity check.
 
@@ -90,23 +102,26 @@ class DatabaseGovernor:
         integrity_check / quick_check would block for minutes.
 
         Args:
-            full: If True, run PRAGMA quick_check (slow on large DBs).
+            full: If True, run PRAGMA quick_check via the async path with
+                  a 120s timeout (DG-02). Never blocks indefinitely.
         """
-        results = {}
+        if full:
+            # DG-02: Always route full check through the async path to prevent
+            # indefinite blocking. PRAGMA quick_check has no native timeout.
+            app_logger.warning(
+                "DG-02: verify_integrity(full=True) — routing through "
+                "async path with 120s timeout to prevent indefinite blocking."
+            )
+            async_results = self.verify_integrity_async(timeout_seconds=120.0)
+            return {"monolith": async_results.get("full_check")}
 
+        results = {}
         with self.db_manager.get_session() as session:
             from sqlalchemy import text
 
-            if full:
-                # F5-31: PRAGMA quick_check can take minutes on large DBs (16+ GB).
-                # No programmatic timeout is available via SQLite pragma — caller should
-                # run this in a background thread or set full=False for liveness checks.
-                res = session.execute(text("PRAGMA quick_check")).scalar()
-                results["monolith"] = res == "ok"
-            else:
-                # Lightweight liveness probe — confirms engine can execute queries
-                res = session.execute(text("SELECT 1")).scalar()
-                results["monolith"] = res == 1
+            # Lightweight liveness probe — confirms engine can execute queries
+            res = session.execute(text("SELECT 1")).scalar()
+            results["monolith"] = res == 1
 
         return results
 
@@ -125,8 +140,7 @@ class DatabaseGovernor:
 
         def _run_full_check():
             try:
-                full_res = self.verify_integrity(full=True)
-                full_result["full_check"] = full_res.get("monolith")
+                full_result["full_check"] = self._run_pragma_quick_check()
             except Exception as e:
                 app_logger.error("Background integrity check failed: %s", e)
                 full_result["full_check"] = False

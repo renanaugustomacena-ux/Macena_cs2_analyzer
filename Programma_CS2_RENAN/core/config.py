@@ -48,7 +48,9 @@ def get_writeable_dir():
 
 
 STORAGE_ROOT = get_writeable_dir()
-SETTINGS_PATH = os.path.join(STORAGE_ROOT, "user_settings.json")
+# C-02: Compute from get_writeable_dir() directly — not from STORAGE_ROOT which is
+# reassigned later (line ~268). This makes settings path independent of that ordering.
+SETTINGS_PATH = os.path.join(get_writeable_dir(), "user_settings.json")
 
 
 def get_resource_path(relative_path):

@@ -74,11 +74,17 @@ class MetaDriftEngine:
 
             dist = float(np.linalg.norm(r_centroid - h_centroid))
 
-            # R4-21-02: Scale spatial drift normalization by map extent.
-            # Large maps (de_dust2 ~6000 units) need larger thresholds than
-            # small maps. Use point spread as proxy for map extent.
-            all_pts = np.array(recent_clean + hist_clean)
-            map_extent = max(float(np.ptp(all_pts[:, 0])), float(np.ptp(all_pts[:, 1])), 1.0)
+            # P-MD-01: Use actual map dimensions from spatial_data when available.
+            # Falls back to observed data spread only if map metadata is missing.
+            from Programma_CS2_RENAN.core.spatial_data import get_map_metadata
+
+            meta = get_map_metadata(map_name)
+            if meta:
+                # Map extent = scale * radar_resolution (1024 pixels)
+                map_extent = meta.scale * 1024.0
+            else:
+                all_pts = np.array(recent_clean + hist_clean)
+                map_extent = max(float(np.ptp(all_pts[:, 0])), float(np.ptp(all_pts[:, 1])), 1.0)
             # Normalize: 10% of map extent drift = 1.0 coefficient
             drift_threshold = max(map_extent * 0.10, 500.0)
             return min(dist / drift_threshold, 1.0)
