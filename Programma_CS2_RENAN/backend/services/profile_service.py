@@ -37,6 +37,13 @@ class ProfileService:
         steam_data = self.fetch_steam_stats(steam_id)
         faceit_data = self.fetch_faceit_stats(faceit_name)
 
+        # AC-28-01: Don't persist an empty profile when both fetches fail
+        steam_ok = "error" not in steam_data
+        faceit_ok = "error" not in faceit_data
+        if not steam_ok and not faceit_ok:
+            logger.warning("Both Steam and FaceIT fetches failed — skipping profile save")
+            return {"status": "error", "steam": steam_data, "faceit": faceit_data}
+
         profile = PlayerProfile(
             player_name=CS2_PLAYER_NAME,
         )

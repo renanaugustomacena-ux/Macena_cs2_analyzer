@@ -9,12 +9,10 @@ Populates the RAG knowledge base with:
 Run this once to initialize the knowledge base.
 """
 
-import sys
 from pathlib import Path
 
-# Add project root to path
+# AC-34-01: Removed sys.path hack — module is imported as a package.
 PROJECT_ROOT = Path(__file__).parent.parent.parent
-sys.path.insert(0, str(PROJECT_ROOT))
 
 from sqlalchemy import func
 from sqlmodel import select

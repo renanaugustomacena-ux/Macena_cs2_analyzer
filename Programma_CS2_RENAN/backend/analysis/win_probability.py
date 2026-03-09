@@ -116,13 +116,21 @@ class WinProbabilityPredictor:
 
     def __init__(self, model_path: Optional[str] = None):
         self.model = WinProbabilityNN()
+        self._checkpoint_loaded = False
 
         if model_path:
             try:
                 self.model.load_state_dict(torch.load(model_path, weights_only=True))
+                self._checkpoint_loaded = True
                 logger.info("Loaded win probability model from %s", model_path)
             except Exception as e:
                 logger.warning("Could not load model: %s. Using heuristic.", e)
+
+        if not self._checkpoint_loaded:
+            logger.warning(
+                "AC-11-01: No checkpoint loaded — predictions use random weights. "
+                "Heuristic adjustments will dominate. Train or provide a model_path."
+            )
 
         self.model.eval()
 

@@ -133,6 +133,9 @@ class DeathProbabilityEstimator:
         """Flag high-risk positions."""
         return probability > threshold
 
+    # AC-05-01: Minimum samples for statistically meaningful calibration
+    MIN_CALIBRATION_SAMPLES: int = 30
+
     def calibrate(self, historical_rounds: pd.DataFrame) -> None:
         """
         Learn priors from labeled historical round data.
@@ -142,6 +145,14 @@ class DeathProbabilityEstimator:
         """
         if historical_rounds.empty:
             logger.warning("Empty calibration data, keeping default priors")
+            return
+
+        if len(historical_rounds) < self.MIN_CALIBRATION_SAMPLES:
+            logger.warning(
+                "AC-05-01: Insufficient death events for calibration (%d < %d). "
+                "Keeping default priors to avoid overfitting to sparse data.",
+                len(historical_rounds), self.MIN_CALIBRATION_SAMPLES,
+            )
             return
 
         required = {"health", "died"}

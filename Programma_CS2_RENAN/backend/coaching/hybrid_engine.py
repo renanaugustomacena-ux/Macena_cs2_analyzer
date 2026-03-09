@@ -22,7 +22,6 @@ from typing import Dict, List, Optional, Tuple
 import numpy as np
 import torch
 
-from Programma_CS2_RENAN.backend.knowledge.rag_knowledge import KnowledgeRetriever
 from Programma_CS2_RENAN.backend.storage.database import get_db_manager, get_hltv_db_manager
 from Programma_CS2_RENAN.core.localization import i18n
 from Programma_CS2_RENAN.backend.storage.db_models import CoachingInsight, TacticalKnowledge
@@ -100,7 +99,9 @@ class HybridCoachingEngine:
         # Calling init_database() here was a constructor side-effect that violated
         # single-responsibility and made unit testing require live DB infrastructure.
         self.db = get_db_manager()
-        self.retriever = KnowledgeRetriever()
+        # AC-15-01: Lazy-load SBERT model — KnowledgeRetriever loads sentence-transformers
+        # on init which is expensive. Defer to first query.
+        self._retriever = None
 
         # Model selection
         if use_jepa is None:
@@ -113,6 +114,14 @@ class HybridCoachingEngine:
         # _using_fallback_baseline is set True when get_pro_baseline() fails (F4-02).
         self._using_fallback_baseline: bool = False
         self.pro_baseline = self._load_pro_baseline()
+
+    @property
+    def retriever(self):
+        """AC-15-01: Lazy-load SBERT model on first query instead of at init."""
+        if self._retriever is None:
+            from Programma_CS2_RENAN.backend.knowledge.rag_knowledge import KnowledgeRetriever
+            self._retriever = KnowledgeRetriever()
+        return self._retriever
 
     def _load_model(self):
         """Load ML model (JEPA or AdvancedCoachNN).

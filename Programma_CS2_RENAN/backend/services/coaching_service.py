@@ -505,11 +505,13 @@ class CoachingService:
 
             retriever = KnowledgeRetriever()
 
-            # Build query from deviations
+            # AC-23-02: Use Z-score-based thresholds (-1.5) instead of raw values (-10, -5)
+            # Deviations dict may contain raw or Z-score values depending on mode;
+            # -1.5 is a standard "notable deviation" cutoff.
             query_parts = []
-            if deviations.get("avg_adr", 0) < -10:
+            if deviations.get("avg_adr", 0) < -1.5:
                 query_parts.append("low ADR")
-            if deviations.get("avg_kills", 0) < -5:
+            if deviations.get("avg_kills", 0) < -1.5:
                 query_parts.append("low kills")
 
             query = " ".join(query_parts) if query_parts else "general improvement"

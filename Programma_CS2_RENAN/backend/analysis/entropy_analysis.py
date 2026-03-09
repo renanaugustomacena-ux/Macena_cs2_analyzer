@@ -57,6 +57,8 @@ class EntropyAnalyzer:
         # Default 32x32 grid. Sufficient for macro-positioning analysis.
         # For fine-grained clustering, KDE would provide smoother estimates.
         self.grid_resolution = grid_resolution
+        # AC-03-01: Pre-allocate grid buffer — reused across calls (zeroed before each use)
+        self._grid_buffer = np.zeros((grid_resolution, grid_resolution), dtype=np.float32)
 
     def compute_position_entropy(
         self,
@@ -80,7 +82,12 @@ class EntropyAnalyzer:
         if not player_positions:
             return 0.0
 
-        grid = np.zeros((res, res), dtype=np.float32)
+        # AC-03-01: Reuse pre-allocated buffer when resolution matches
+        if res == self.grid_resolution:
+            grid = self._grid_buffer
+            grid[:] = 0  # zero-fill instead of allocating
+        else:
+            grid = np.zeros((res, res), dtype=np.float32)
 
         xs = [p[0] for p in player_positions]
         ys = [p[1] for p in player_positions]
@@ -105,6 +112,8 @@ class EntropyAnalyzer:
         probs = grid.ravel() / total
         probs = probs[probs > 0]
 
+        # AC-06-01: clip to avoid log2(0) from floating-point underflow
+        probs = np.clip(probs, np.finfo(np.float32).tiny, None)
         entropy = -np.sum(probs * np.log2(probs))
         return float(entropy)
 

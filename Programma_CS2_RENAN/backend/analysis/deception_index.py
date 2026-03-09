@@ -142,6 +142,11 @@ class DeceptionAnalyzer:
         if len(sampled) < 3:
             return 0.0
 
+        # AC-04-01: Normalize minimum displacement by map scale (ptp = point-to-point extent)
+        # so the threshold adapts to different coordinate systems across maps.
+        map_extent = max(float(np.ptp(positions[:, 0])), float(np.ptp(positions[:, 1])), 1.0)
+        min_displacement = map_extent * 0.001  # 0.1% of map extent
+
         # Compute direction changes (angular velocity)
         direction_changes = 0
         significant_changes = 0
@@ -155,7 +160,7 @@ class DeceptionAnalyzer:
             mag1 = np.sqrt(dx1**2 + dy1**2)
             mag2 = np.sqrt(dx2**2 + dy2**2)
 
-            if mag1 < 1.0 or mag2 < 1.0:
+            if mag1 < min_displacement or mag2 < min_displacement:
                 continue
 
             cos_angle = (dx1 * dx2 + dy1 * dy2) / (mag1 * mag2)

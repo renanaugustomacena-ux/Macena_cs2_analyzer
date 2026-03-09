@@ -122,23 +122,18 @@ class KnowledgeGraphManager:
 
     def query_subgraph(self, central_entity: str, depth: int = 1) -> Dict:
         """
-        Retrieve the subgraph surrounding a central entity.
-        Useful for RAG context retrieval.
+        Retrieve the subgraph surrounding a central entity via BFS.
 
         Args:
             central_entity: Name of the central node to query around.
-            depth: Traversal depth. Currently only depth=1 (direct neighbors)
-                is implemented. Multi-hop traversal is not yet implemented.
+            depth: Traversal depth (1 = direct neighbors, 2+ = multi-hop).
+                Capped at 5 to prevent runaway queries.
 
         Returns:
             Dict containing 'entity' (central node) and 'neighbors' (list of relations)
         """
-        if depth > 1:
-            logger.warning(
-                "query_subgraph called with depth=%d but only depth=1 is implemented; "
-                "returning 1-hop neighbors only",
-                depth,
-            )
+        # AC-33-01: Implement BFS for depth > 1
+        depth = max(1, min(depth, 5))  # safety cap
         result = {"entity": None, "neighbors": []}
 
         try:
@@ -157,29 +152,40 @@ class KnowledgeGraphManager:
                     "observations": json.loads(root["observations"]),
                 }
 
-                # Fetch 1-hop Neighbors (Outgoing)
-                cursor = conn.execute(
-                    """
-                    SELECT r.relation_type, e.name, e.type, e.observations
-                    FROM relations r
-                    JOIN entities e ON r.to_entity = e.name
-                    WHERE r.from_entity = ?
-                """,
-                    (central_entity,),
-                )
+                # BFS: expand frontier level by level
+                visited = {central_entity}
+                frontier = [central_entity]
 
-                rows = cursor.fetchall()
-                for row in rows:
-                    result["neighbors"].append(
-                        {
-                            "relation": row["relation_type"],
-                            "target": {
-                                "name": row["name"],
-                                "type": row["type"],
-                                "observations": json.loads(row["observations"]),
-                            },
-                        }
-                    )
+                for _level in range(depth):
+                    if not frontier:
+                        break
+                    next_frontier = []
+                    for entity_name in frontier:
+                        cursor = conn.execute(
+                            """
+                            SELECT r.relation_type, e.name, e.type, e.observations
+                            FROM relations r
+                            JOIN entities e ON r.to_entity = e.name
+                            WHERE r.from_entity = ?
+                            """,
+                            (entity_name,),
+                        )
+                        for row in cursor.fetchall():
+                            neighbor_name = row["name"]
+                            result["neighbors"].append(
+                                {
+                                    "relation": row["relation_type"],
+                                    "target": {
+                                        "name": neighbor_name,
+                                        "type": row["type"],
+                                        "observations": json.loads(row["observations"]),
+                                    },
+                                }
+                            )
+                            if neighbor_name not in visited:
+                                visited.add(neighbor_name)
+                                next_frontier.append(neighbor_name)
+                    frontier = next_frontier
 
         except Exception as e:
             logger.error("Graph query failed for %s: %s", central_entity, e)

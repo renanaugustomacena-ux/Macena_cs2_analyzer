@@ -108,6 +108,24 @@ class ExperienceBank:
         self.embedder = KnowledgeEmbedder()
         logger.info("ExperienceBank initialized")
 
+    # AC-32-01: Compact embedding serialization (base64 numpy bytes)
+    # ~4x smaller than JSON for float32 vectors.  Reads both formats for
+    # backward compatibility with existing JSON-encoded rows.
+
+    @staticmethod
+    def _serialize_embedding(vec: np.ndarray) -> str:
+        """Serialize embedding to base64-encoded float32 bytes."""
+        import base64
+        return base64.b64encode(vec.astype(np.float32).tobytes()).decode("ascii")
+
+    @staticmethod
+    def _deserialize_embedding(raw: str) -> np.ndarray:
+        """Deserialize embedding from base64 or legacy JSON."""
+        if raw.startswith("["):
+            return np.array(json.loads(raw), dtype=np.float32)
+        import base64
+        return np.frombuffer(base64.b64decode(raw), dtype=np.float32)
+
     def add_experience(
         self,
         context: ExperienceContext,
@@ -140,7 +158,7 @@ class ExperienceBank:
         # Generate embedding for semantic search
         query_text = f"{context.to_query_string()} {action_taken} {outcome}"
         embedding_vec = self.embedder.embed(query_text)
-        embedding_json = json.dumps(embedding_vec.tolist())
+        embedding_json = self._serialize_embedding(embedding_vec)
 
         # Create experience record
         experience = CoachingExperience(
@@ -313,7 +331,7 @@ class ExperienceBank:
 
                 if exp.embedding:
                     try:
-                        exp_vec = np.array(json.loads(exp.embedding))
+                        exp_vec = self._deserialize_embedding(exp.embedding)
                         similarity = self._cosine_similarity(query_embedding, exp_vec)
                     except (json.JSONDecodeError, ValueError):
                         similarity = 0.0
@@ -406,7 +424,7 @@ class ExperienceBank:
             for exp in candidates:
                 if exp.embedding:
                     try:
-                        exp_vec = np.array(json.loads(exp.embedding))
+                        exp_vec = self._deserialize_embedding(exp.embedding)
                         similarity = self._cosine_similarity(query_embedding, exp_vec)
                         scored.append((exp, similarity))
                     except (json.JSONDecodeError, ValueError):
