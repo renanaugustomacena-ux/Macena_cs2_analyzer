@@ -291,6 +291,9 @@ class PerformanceViewModel(EventDispatcher):
             Clock.schedule_once(
                 lambda dt: self._on_error("Error loading performance data."), 0
             )
+        finally:
+            # Guarantee is_loading resets even on early return or unexpected error
+            Clock.schedule_once(lambda dt: setattr(self, "is_loading", False), 0)
 
     def _on_loaded(self, history, map_stats, sw, utility):
         self.history = history or []
