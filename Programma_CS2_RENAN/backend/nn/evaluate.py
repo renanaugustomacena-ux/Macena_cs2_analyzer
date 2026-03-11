@@ -13,6 +13,9 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.nn.evaluate")
 
+# Magnitude below which unused output dimensions are considered inactive.
+UNUSED_DIM_SIGNIFICANCE_THRESHOLD = 0.01
+
 
 def evaluate_adjustments(model, X_sample, role_id=None):
     """
@@ -34,7 +37,7 @@ def evaluate_adjustments(model, X_sample, role_id=None):
     # coaching heads (utility, positioning, timing) in a future multi-head architecture.
     if adj.shape[0] > 4:
         unused_dims = adj[4:]
-        unused_nonzero = (unused_dims.abs() > 0.01).sum().item()
+        unused_nonzero = (unused_dims.abs() > UNUSED_DIM_SIGNIFICANCE_THRESHOLD).sum().item()
         if unused_nonzero > 0:
             logger.debug(
                 "NN-12: %d/%d unused output dims have non-trivial values (max=%.4f)",

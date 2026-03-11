@@ -34,6 +34,11 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.experience_bank")
 
+# Confidence thresholds for experience quality classification.
+MIN_RETRIEVAL_CONFIDENCE = 0.3  # Minimum acceptable experience quality for retrieval
+PRO_EXPERIENCE_CONFIDENCE = 0.7  # Confidence assigned to pro-sourced experiences
+AMATEUR_EXPERIENCE_CONFIDENCE = 0.5  # Confidence assigned to user-sourced experiences
+
 
 @dataclass
 class ExperienceContext:
@@ -198,7 +203,7 @@ class ExperienceBank:
         self,
         context: ExperienceContext,
         top_k: int = 3,
-        min_confidence: float = 0.3,
+        min_confidence: float = MIN_RETRIEVAL_CONFIDENCE,
         outcome_filter: Optional[str] = None,
     ) -> List[CoachingExperience]:
         """
@@ -624,7 +629,7 @@ class ExperienceBank:
                 game_state=tick_snapshot,
                 pro_player_name=pro_player_name if is_pro else None,
                 source_demo=demo_name,
-                confidence=0.7 if is_pro else 0.5,
+                confidence=PRO_EXPERIENCE_CONFIDENCE if is_pro else AMATEUR_EXPERIENCE_CONFIDENCE,
             )
             experiences_added += 1
 
