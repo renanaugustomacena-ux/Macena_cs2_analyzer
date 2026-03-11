@@ -282,6 +282,10 @@ class MatchDataManager:
             self._engines[match_id] = engine
             return engine
 
+    def get_engine(self, match_id: int):
+        """Public API to get or create a SQLAlchemy engine for a match database."""
+        return self._get_or_create_engine(match_id)
+
     @contextmanager
     def get_match_session(self, match_id: int) -> Generator[Session, None, None]:
         """
@@ -564,10 +568,11 @@ class MatchDataManager:
         Returns:
             True if deleted, False if not found
         """
-        # Remove from engine cache
-        if match_id in self._engines:
-            self._engines[match_id].dispose()
-            del self._engines[match_id]
+        # Remove from engine cache (thread-safe — matches _get_or_create_engine)
+        with self._engine_lock:
+            if match_id in self._engines:
+                self._engines[match_id].dispose()
+                del self._engines[match_id]
 
         # Delete the file
         db_path = self._get_match_db_path(match_id)

@@ -25,6 +25,7 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional, Tuple
 
 import numpy as np
+from sqlalchemy import update
 from sqlmodel import Session, func, select
 
 from Programma_CS2_RENAN.backend.knowledge.round_utils import infer_round_phase  # F5-20: shared utility
@@ -299,9 +300,15 @@ class ExperienceBank:
             scored.sort(key=lambda x: x[1], reverse=True)
             results = [exp for exp, _ in scored[:top_k]]
 
-            for exp in results:
-                exp.usage_count += 1
-            session.commit()
+            # Atomic usage_count increment (prevents race in concurrent retrieval)
+            result_ids = [exp.id for exp in results if exp.id is not None]
+            if result_ids:
+                session.execute(
+                    update(CoachingExperience)
+                    .where(CoachingExperience.id.in_(result_ids))
+                    .values(usage_count=CoachingExperience.usage_count + 1)
+                )
+                session.commit()
 
             return results
 
@@ -357,9 +364,15 @@ class ExperienceBank:
             scored.sort(key=lambda x: x[1], reverse=True)
             results = [exp for exp, _ in scored[:top_k]]
 
-            for exp in results:
-                exp.usage_count += 1
-            session.commit()
+            # Atomic usage_count increment (prevents race in concurrent retrieval)
+            result_ids = [exp.id for exp in results if exp.id is not None]
+            if result_ids:
+                session.execute(
+                    update(CoachingExperience)
+                    .where(CoachingExperience.id.in_(result_ids))
+                    .values(usage_count=CoachingExperience.usage_count + 1)
+                )
+                session.commit()
 
             return results
 
