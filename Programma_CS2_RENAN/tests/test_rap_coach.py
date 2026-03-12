@@ -373,14 +373,14 @@ class TestRAPCoachModel:
         from Programma_CS2_RENAN.backend.nn.rap_coach.model import RAPCoachModel
 
         torch.manual_seed(123)
-        m1 = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+        m1 = RAPCoachModel()
         m1.eval()
         with torch.no_grad():
             out1 = m1(rap_inputs["view"], rap_inputs["map"], rap_inputs["motion"],
                        rap_inputs["metadata"])
 
         torch.manual_seed(123)
-        m2 = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+        m2 = RAPCoachModel()
         m2.eval()
         with torch.no_grad():
             out2 = m2(rap_inputs["view"], rap_inputs["map"], rap_inputs["motion"],
@@ -468,7 +468,7 @@ class TestRAPTrainer:
         from Programma_CS2_RENAN.backend.nn.rap_coach.trainer import RAPTrainer
 
         torch.manual_seed(42)
-        model = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+        model = RAPCoachModel()
         trainer = RAPTrainer(model, lr=1e-4)
         batch = {
             "view": rap_inputs["view"],
@@ -490,7 +490,7 @@ class TestRAPTrainer:
         from Programma_CS2_RENAN.backend.nn.rap_coach.trainer import RAPTrainer
 
         torch.manual_seed(42)
-        model = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+        model = RAPCoachModel()
         trainer = RAPTrainer(model, lr=1e-3)
         batch = {
             "view": rap_inputs["view"],
@@ -511,7 +511,7 @@ class TestRAPTrainer:
         from Programma_CS2_RENAN.backend.nn.rap_coach.model import RAPCoachModel
         from Programma_CS2_RENAN.backend.nn.rap_coach.trainer import RAPTrainer
 
-        model = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+        model = RAPCoachModel()
         trainer = RAPTrainer(model)
         assert trainer.z_axis_penalty_weight == 2.0
 
@@ -519,7 +519,7 @@ class TestRAPTrainer:
         from Programma_CS2_RENAN.backend.nn.rap_coach.model import RAPCoachModel
         from Programma_CS2_RENAN.backend.nn.rap_coach.trainer import RAPTrainer
 
-        model = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+        model = RAPCoachModel()
         trainer = RAPTrainer(model)
         pred = torch.tensor([[0.0, 0.0, 1.0]])
         target = torch.tensor([[0.0, 0.0, 0.0]])
@@ -533,7 +533,7 @@ class TestRAPTrainer:
         from Programma_CS2_RENAN.backend.nn.rap_coach.trainer import RAPTrainer
 
         torch.manual_seed(42)
-        model = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+        model = RAPCoachModel()
         trainer = RAPTrainer(model)
         batch = {
             "view": rap_inputs["view"],
@@ -552,7 +552,7 @@ class TestRAPTrainer:
         from Programma_CS2_RENAN.backend.nn.rap_coach.trainer import RAPTrainer
 
         torch.manual_seed(42)
-        model = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+        model = RAPCoachModel()
         trainer = RAPTrainer(model)
         batch = {
             "view": rap_inputs["view"],

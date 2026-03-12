@@ -8,18 +8,19 @@ try:
 except ImportError:
     _HAS_SHAP = False
 
+from Programma_CS2_RENAN.backend.nn.coach_manager import MATCH_AGGREGATE_FEATURES
 from Programma_CS2_RENAN.backend.nn.config import WEIGHT_CLAMP
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.nn.evaluate")
 
-# Magnitude below which unused output dimensions are considered inactive.
-UNUSED_DIM_SIGNIFICANCE_THRESHOLD = 0.01
-
 
 def evaluate_adjustments(model, X_sample, role_id=None):
     """
     Evaluates adjustments AND provides SHAP explanations (Item 1).
+
+    Returns a dict with one ``{feature}_weight`` key per MATCH_AGGREGATE_FEATURES
+    entry (25 total) plus an ``explanations`` key for SHAP values.
     """
     model.eval()
 
@@ -31,18 +32,6 @@ def evaluate_adjustments(model, X_sample, role_id=None):
     # 1. Prediction with Role Context
     with torch.no_grad():
         adj = model(X_tensor, role_id=role_id).squeeze(0)
-
-    # NN-12: Model outputs METADATA_DIM dimensions but only 4 are used as weights.
-    # Remaining dims (indices 4-24) are unused — they could be routed to additional
-    # coaching heads (utility, positioning, timing) in a future multi-head architecture.
-    if adj.shape[0] > 4:
-        unused_dims = adj[4:]
-        unused_nonzero = (unused_dims.abs() > UNUSED_DIM_SIGNIFICANCE_THRESHOLD).sum().item()
-        if unused_nonzero > 0:
-            logger.debug(
-                "NN-12: %d/%d unused output dims have non-trivial values (max=%.4f)",
-                unused_nonzero, len(unused_dims), unused_dims.abs().max().item(),
-            )
 
     # 2. Explanation (SHAP)
     shap_values = None
@@ -62,10 +51,12 @@ def evaluate_adjustments(model, X_sample, role_id=None):
     else:
         logger.warning("shap not installed — SHAP explanations unavailable. Install with: pip install shap")
 
-    return {
-        "adr_weight": float(adj[0]) * WEIGHT_CLAMP,
-        "kast_weight": float(adj[1]) * WEIGHT_CLAMP,
-        "hs_weight": float(adj[2]) * WEIGHT_CLAMP,
-        "impact_weight": float(adj[3]) * WEIGHT_CLAMP,
-        "explanations": shap_values,
-    }
+    # Build adjustment dict for the first OUTPUT_DIM features (10 of 25).
+    # Remaining features have no NN adjustment. Keys follow "{feature}_weight".
+    adjustments = {}
+    for i, feature_name in enumerate(MATCH_AGGREGATE_FEATURES):
+        if i < adj.shape[0]:
+            adjustments[f"{feature_name}_weight"] = float(adj[i]) * WEIGHT_CLAMP
+
+    adjustments["explanations"] = shap_values
+    return adjustments

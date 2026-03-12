@@ -47,6 +47,28 @@ class SchemaSuite:
             raise ValueError(f"Unsafe SQL identifier rejected: {name!r}")
         return name
 
+    def _safe_pragma_table_info(self, cursor, table: str) -> list:
+        """Execute PRAGMA table_info with validated identifier."""
+        safe = self._validate_identifier(table)
+        cursor.execute(f"PRAGMA table_info([{safe}])")
+        return cursor.fetchall()
+
+    def _safe_select_count(self, cursor, table: str) -> int:
+        """Execute SELECT COUNT(*) with validated identifier."""
+        safe = self._validate_identifier(table)
+        cursor.execute(f"SELECT COUNT(*) FROM [{safe}]")
+        return cursor.fetchone()[0]
+
+    def _safe_alter_add_column(self, cursor, table: str, col_name: str, col_type: str):
+        """Execute ALTER TABLE ADD COLUMN with all identifiers validated."""
+        safe_table = self._validate_identifier(table)
+        safe_col = self._validate_identifier(col_name)
+        if not _SAFE_COL_TYPE_RE.match(col_type):
+            raise ValueError(f"Unsafe column type rejected: {col_type!r}")
+        cursor.execute(
+            f"ALTER TABLE [{safe_table}] ADD COLUMN [{safe_col}] {col_type}"
+        )
+
     def _get_connection(self, db_path=None):
         target = db_path or self.db_path
         if not target.exists():
@@ -75,9 +97,7 @@ class SchemaSuite:
         print(f"[*] Found {len(tables)} tables:")
 
         for table in tables:
-            self._validate_identifier(table)
-            cursor.execute(f"PRAGMA table_info([{table}])")
-            cols = cursor.fetchall()
+            cols = self._safe_pragma_table_info(cursor, table)
             print(f"    - {table} ({len(cols)} columns)")
             # Optional: Print detail if few tables
 
@@ -113,18 +133,13 @@ class SchemaSuite:
         print("[*] Migration check complete.")
 
     def _apply_column_migration(self, table, col_name, col_type):
-        self._validate_identifier(table)
-        self._validate_identifier(col_name)
-        if not _SAFE_COL_TYPE_RE.match(col_type):
-            raise ValueError(f"Unsafe column type rejected: {col_type!r}")
         conn = self._get_connection()
         cursor = conn.cursor()
         try:
-            cursor.execute(f"PRAGMA table_info([{table}])")
-            cols = [c[1] for c in cursor.fetchall()]
+            cols = [c[1] for c in self._safe_pragma_table_info(cursor, table)]
             if col_name not in cols:
                 print(f"[+] Migrating: Adding '{col_name}' to '{table}'...")
-                cursor.execute(f"ALTER TABLE [{table}] ADD COLUMN [{col_name}] {col_type}")
+                self._safe_alter_add_column(cursor, table, col_name, col_type)
                 conn.commit()
                 print("    [DONE] Applied.")
             else:
@@ -177,12 +192,10 @@ class SchemaSuite:
                 return
 
             print(f"    Processing '{table}'...")
-            src_cur.execute(f"SELECT COUNT(*) FROM [{table}]")
-            row_count = src_cur.fetchone()[0]
+            row_count = self._safe_select_count(src_cur, table)
 
             # Get columns
-            src_cur.execute(f"PRAGMA table_info([{table}])")
-            cols = [c[1] for c in src_cur.fetchall()]
+            cols = [c[1] for c in self._safe_pragma_table_info(src_cur, table)]
 
             # Ignoring ID collisions for now; usually we'd filter.
             # This is a naive import for the master suite prototype.

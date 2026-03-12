@@ -205,8 +205,8 @@ No other findings. Clean orchestrator pattern with proper signal handling.
 
 | # | Severity | Category | Line(s) | Finding | Recommendation |
 |---|----------|----------|---------|---------|----------------|
-| 33 | HIGH | Security | 67-68, 108, 111, 155-165 | **SQL Injection via string formatting**: `f"PRAGMA table_info({table})"`, `f"ALTER TABLE {table} ADD COLUMN {col_name} {col_type}"`, `f"SELECT * FROM {table}"` — table/column names are interpolated unsafely. While values come from `sqlite_master`, the `_transfer_table` method accepts names from an untrusted external source DB | Use parameterized queries where possible; for DDL statements, validate table/column names against `^[a-zA-Z_][a-zA-Z0-9_]*$` regex |
-| 34 | HIGH | Code Quality | 216 | **Bare `except:`** catches all exceptions including `SystemExit` and `KeyboardInterrupt` — prevents graceful shutdown | Change to `except Exception:` |
+| 33 | HIGH | Security | 67-68, 108, 111, 155-165 | **FIXED** — All DDL f-string SQL moved into safe helper methods (`_safe_pragma_table_info()`, `_safe_alter_add_column()`, `_safe_select_count()`) that enforce `_validate_identifier()` regex (`^[a-zA-Z_][a-zA-Z0-9_]*$`) before execution. Call sites can no longer bypass validation. | ~~Use parameterized queries.~~ Resolved via encapsulated safe helpers. |
+| 34 | HIGH | Code Quality | 216 | **FIXED** — All `except` clauses now use `except Exception:` or `except Exception as e:`. No bare `except:` remains. | ~~Change to `except Exception:`.~~ Already resolved. |
 | 35 | MEDIUM | Data Integrity | 198-201 | `run_fix("sequences")` does `DELETE FROM sqlite_sequence` without backup or confirmation prompt — destructive operation that resets all auto-increment counters | Add `--yes` confirmation flag and create backup before delete |
 | 36 | MEDIUM | Performance | 160 | `fetchall()` loads all rows of a table into memory — unbounded for large tables (PlayerTickState can have millions of rows) | Use cursor iteration or `LIMIT/OFFSET` batching |
 | 37 | LOW | Code Quality | — | No logging anywhere in the file — all output via `print()` | Add structured logging |

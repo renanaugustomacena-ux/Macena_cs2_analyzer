@@ -2,7 +2,7 @@ import numpy as np
 import torch
 from sqlmodel import func, select
 
-from Programma_CS2_RENAN.backend.nn.config import RAP_POSITION_SCALE, get_device
+from Programma_CS2_RENAN.backend.nn.config import OUTPUT_DIM, RAP_POSITION_SCALE, get_device
 from Programma_CS2_RENAN.backend.nn.persistence import load_nn, save_nn
 from Programma_CS2_RENAN.backend.nn.train import train_nn
 from Programma_CS2_RENAN.backend.nn.training_orchestrator import TrainingOrchestrator
@@ -105,7 +105,7 @@ if len(MATCH_AGGREGATE_FEATURES) != METADATA_DIM:
         f"!= METADATA_DIM ({METADATA_DIM})"
     )
 
-TARGET_INDICES = [0, 2, 4, 11]  # avg_kills, avg_adr, avg_kast, rating
+TARGET_INDICES = list(range(OUTPUT_DIM))  # First 10 core features targeted by NN adjustments
 
 # Task 2.11.1: Soft Gate - Maturity tiers for calibrating coaching confidence
 # Confidence multipliers prevent overconfident coaching when data is sparse

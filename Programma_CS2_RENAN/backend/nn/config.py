@@ -119,7 +119,7 @@ BATCH_SIZE = 32
 from Programma_CS2_RENAN.backend.processing.feature_engineering import METADATA_DIM
 
 INPUT_DIM = METADATA_DIM  # Canonical 25-dim feature vector (was 19, was legacy 12)
-OUTPUT_DIM = METADATA_DIM  # P1-08: Aligned with METADATA_DIM (was 4, conflicting with model.py)
+OUTPUT_DIM = 10  # Strategy layer outputs adjustments for the first 10 core features
 HIDDEN_DIM = 128  # Hidden layer size for AdvancedCoachNN / TeacherRefinementNN
 
 # Training

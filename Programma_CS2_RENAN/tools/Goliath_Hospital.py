@@ -1534,7 +1534,7 @@ class GoliathHospital:
             from Programma_CS2_RENAN.backend.nn.rap_coach.model import RAPCoachModel
             from Programma_CS2_RENAN.backend.processing.feature_engineering import METADATA_DIM
 
-            rap = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+            rap = RAPCoachModel()
             rap.eval()
             with torch.no_grad():
                 view = torch.randn(1, 3, 64, 64)
@@ -1627,7 +1627,7 @@ class GoliathHospital:
             dim_checks = [
                 ("METADATA_DIM (vectorizer)", METADATA_DIM, 25),
                 ("INPUT_DIM (nn/config)", INPUT_DIM, METADATA_DIM),
-                ("OUTPUT_DIM (nn/config)", OUTPUT_DIM, METADATA_DIM),
+                ("OUTPUT_DIM (nn/config)", OUTPUT_DIM, 10),
             ]
             all_aligned = True
             for name, actual, expected in dim_checks:

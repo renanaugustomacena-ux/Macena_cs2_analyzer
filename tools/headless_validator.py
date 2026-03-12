@@ -1158,11 +1158,10 @@ print("\n[Phase 10] Deep ML Invariants")
 
 def verify_output_dim():
     from Programma_CS2_RENAN.backend.nn.config import OUTPUT_DIM
-    from Programma_CS2_RENAN.backend.processing.feature_engineering import METADATA_DIM
 
-    # P1-08: OUTPUT_DIM must equal METADATA_DIM (was hardcoded to 4, now aligned)
-    if OUTPUT_DIM != METADATA_DIM:
-        raise AssertionError(f"OUTPUT_DIM = {OUTPUT_DIM}, expected METADATA_DIM = {METADATA_DIM}")
+    # Strategy layer outputs adjustments for the first 10 core features
+    if OUTPUT_DIM != 10:
+        raise AssertionError(f"OUTPUT_DIM = {OUTPUT_DIM}, expected 10")
 
 
 def verify_input_dim_matches_metadata():
@@ -1319,7 +1318,7 @@ def verify_concept_labeler_output():
         raise AssertionError("ConceptLabeler produced labels outside [0, 1]")
 
 
-check("ML-Deep", "OUTPUT_DIM == METADATA_DIM", verify_output_dim)
+check("ML-Deep", "OUTPUT_DIM == 10", verify_output_dim)
 check("ML-Deep", "INPUT_DIM == METADATA_DIM", verify_input_dim_matches_metadata)
 check("ML-Deep", "NUM_COACHING_CONCEPTS == 16", verify_num_coaching_concepts)
 check("ML-Deep", "JEPA forward -> [batch, OUTPUT_DIM]", verify_jepa_forward_shape)

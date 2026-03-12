@@ -321,7 +321,7 @@ No findings. Clean orchestrator that delegates to headless_validator (critical),
 
 | # | Severity | Category | Line(s) | Finding | Recommendation |
 |---|----------|----------|---------|---------|----------------|
-| 1 | HIGH | Security | 116 | SQL injection via f-string: `placeholders = ",".join([f"'{d}'" for d in train_demo_names])` then `f"SELECT COUNT(*) FROM playertickstate WHERE demo_name IN ({placeholders})"` — train_demo_names come from DB query results, but if a demo name contains a single quote, this breaks or enables injection | Use parameterized queries: `"SELECT COUNT(*) FROM playertickstate WHERE demo_name IN ({','.join(['?']*len(train_demo_names))})"` with tuple(train_demo_names) |
+| 1 | HIGH | Security | 116 | **FALSE POSITIVE** — Current code uses `sqlalchemy.text()` with named parameters (`:p0, :p1, ...`) and a separate `params` dict. Values are not interpolated into the SQL string. The f-string only constructs placeholder names, not values. ~~SQL injection via f-string.~~ | No action needed — query is correctly parameterized. |
 | 2 | MEDIUM | Infrastructure | 1-35 | No venv guard — can run outside the virtual environment and may import wrong packages | Add standard venv guard |
 | 3 | MEDIUM | Correctness | 279-320 | ObserverCallback class defined inside phase_4_jepa_training() — correct scoping but makes testing difficult | Consider extracting to module level |
 

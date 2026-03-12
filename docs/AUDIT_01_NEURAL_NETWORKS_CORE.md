@@ -57,6 +57,8 @@ The neural network core comprises the full model zoo (AdvancedCoachNN, JEPA, VL-
 
 ### NN-H-01: Position Scale Factor Mismatch — Overlay vs Inference (coach_manager.py:851-852)
 
+> **Status: FIXED** — `coach_manager.py` now imports and uses `RAP_POSITION_SCALE` from `config.py`. The hardcoded `1000` no longer exists.
+
 **File:** `coach_manager.py`, lines 851-852
 **Category:** Correctness — numerical divergence
 
@@ -84,6 +86,8 @@ The overlay ghost positions are displayed at **2x** the distance from the player
 ---
 
 ### NN-H-02: 84% of Model Output Dimensions Unused (evaluate.py:63-66)
+
+> **Status: FIXED** — `OUTPUT_DIM` in `config.py` now correctly set to `10` (matching the actual model architecture). `evaluate.py` iterates all 25 `MATCH_AGGREGATE_FEATURES` but populates only the first `OUTPUT_DIM` (10) with NN adjustments. The original code extracting only 4 hardcoded indices has been replaced with a loop over all model outputs.
 
 **File:** `evaluate.py`, lines 32-66
 **Category:** Architecture — wasted capacity

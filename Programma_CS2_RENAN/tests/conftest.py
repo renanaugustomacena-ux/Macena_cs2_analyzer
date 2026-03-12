@@ -269,10 +269,9 @@ def rap_model():
     import torch
 
     from Programma_CS2_RENAN.backend.nn.rap_coach.model import RAPCoachModel
-    from Programma_CS2_RENAN.backend.processing.feature_engineering import METADATA_DIM
 
     torch.manual_seed(42)
-    model = RAPCoachModel(metadata_dim=METADATA_DIM, output_dim=10)
+    model = RAPCoachModel()
     model.eval()
     return model
 
@@ -342,3 +341,33 @@ def mock_db_manager():
                 return session.merge(model_instance)
 
     return InMemoryDBManager()
+
+
+@pytest.fixture
+def isolated_settings(tmp_path, monkeypatch):
+    """Redirect settings file I/O to a temp file.
+
+    Prevents tests from reading/writing the real user_settings.json.
+    In-memory _settings state is snapshotted and restored at teardown
+    so later tests in the same process aren't polluted.
+    """
+    from Programma_CS2_RENAN.core import config
+
+    # Snapshot in-memory state before the test mutates it
+    settings_snapshot = config._settings.copy()
+    globals_snapshot = {k: getattr(config, k, None) for k in config._SETTING_NAME_TO_GLOBAL}
+
+    # Create temp settings file (empty — load_user_settings merges with defaults)
+    tmp_settings = tmp_path / "user_settings.json"
+    tmp_settings.write_text("{}")
+
+    # Redirect all file I/O to the temp file
+    monkeypatch.setattr(config, "SETTINGS_PATH", str(tmp_settings))
+
+    yield str(tmp_settings)
+
+    # Restore in-memory state so subsequent tests see original values
+    config._settings.clear()
+    config._settings.update(settings_snapshot)
+    for key, val in globals_snapshot.items():
+        setattr(config, key, val)

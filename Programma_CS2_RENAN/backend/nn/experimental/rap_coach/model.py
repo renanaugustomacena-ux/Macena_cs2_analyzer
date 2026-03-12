@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 
-from Programma_CS2_RENAN.backend.nn.config import RAP_POSITION_SCALE  # noqa: F401
+from Programma_CS2_RENAN.backend.nn.config import OUTPUT_DIM, RAP_POSITION_SCALE  # noqa: F401
 from Programma_CS2_RENAN.backend.nn.experimental.rap_coach.memory import RAPMemory
 from Programma_CS2_RENAN.backend.nn.experimental.rap_coach.pedagogy import CausalAttributor, RAPPedagogy
 from Programma_CS2_RENAN.backend.nn.experimental.rap_coach.perception import RAPPerception
@@ -18,7 +18,7 @@ class RAPCoachModel(nn.Module):
     Layers: Perception, Prediction, Evaluation, Strategy, Memory, Pedagogy.
     """
 
-    def __init__(self, metadata_dim=METADATA_DIM, output_dim=10, heuristic_config=None):
+    def __init__(self, metadata_dim=METADATA_DIM, output_dim=OUTPUT_DIM, heuristic_config=None):
         super().__init__()
         self.metadata_dim = metadata_dim
 
