@@ -209,9 +209,12 @@ MAX_TOTAL_DEMOS_PER_USER = 100
 
 _settings = load_user_settings()
 
-# C-01: Module-level globals — convenience shortcuts for single-threaded callers.
-# WARNING: Daemon/background threads MUST use get_setting() or get_credential()
-# instead, because these globals are NOT synchronized on read.
+# C-01: Module-level globals — convenience shortcuts retained for backward
+# compatibility.  For thread-safe access from daemon/background threads,
+# prefer get_setting(key) or get_credential(key), which acquire
+# _settings_lock.  These bare globals are updated inside refresh_settings()
+# under lock, but other modules that captured them via
+# ``from config import GLOBAL`` hold stale local bindings.
 CS2_PLAYER_NAME = _settings["CS2_PLAYER_NAME"]
 STEAM_ID = _settings["STEAM_ID"]
 STEAM_API_KEY = _settings["STEAM_API_KEY"]
@@ -299,8 +302,9 @@ HLTV_DATABASE_URL = f"sqlite:///{os.path.join(CORE_DB_DIR, 'hltv_metadata.db')}"
 
 
 def get_setting(key, default=None):
-    """Dynamic setting lookup (thread-safe via immutable dict snapshot)."""
-    return _settings.get(key, default)
+    """Thread-safe dynamic setting lookup. Safe for daemon/background threads."""
+    with _settings_lock:
+        return _settings.get(key, default)
 
 
 def get_credential(key: str) -> str:
@@ -335,8 +339,9 @@ def refresh_settings():
 
 
 def get_all_settings():
-    """Returns a copy of all current settings."""
-    return _settings.copy()
+    """Returns a thread-safe copy of all current settings."""
+    with _settings_lock:
+        return _settings.copy()
 
 
 _SETTING_NAME_TO_GLOBAL = {

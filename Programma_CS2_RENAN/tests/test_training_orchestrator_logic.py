@@ -41,7 +41,9 @@ class TestOrchestratorInit:
     def test_valid_rap_type_accepted(self):
         pytest.importorskip("ncps", reason="ncps not installed")
         with patch("Programma_CS2_RENAN.backend.nn.training_orchestrator.get_device",
-                    return_value=torch.device("cpu")):
+                    return_value=torch.device("cpu")), \
+             patch("Programma_CS2_RENAN.core.config.get_setting",
+                    side_effect=lambda key, default=None: True if key == "USE_RAP_MODEL" else default):
             from Programma_CS2_RENAN.backend.nn.training_orchestrator import TrainingOrchestrator
 
             manager = MagicMock()

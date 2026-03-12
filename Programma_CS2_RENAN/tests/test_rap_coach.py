@@ -303,7 +303,8 @@ class TestRAPCoachModel:
             rap_inputs["metadata"], rap_inputs["skill_vec"],
         )
         expected_keys = {"advice_probs", "belief_state", "value_estimate",
-                         "gate_weights", "optimal_pos", "attribution"}
+                         "gate_weights", "optimal_pos", "attribution",
+                         "hidden_state"}
         assert set(out.keys()) == expected_keys
 
     def test_advice_probs_shape(self, rap_model, rap_inputs, torch_no_grad):

@@ -65,8 +65,9 @@ EVENT_REGISTRY: Dict[str, GameEventSpec] = {
         category="round",
         fields={},
         priority="standard",
-        implemented=False,
-        notes="Marks end of freeze time — round action begins.",
+        implemented=True,
+        handler_path="backend/data_sources/round_context.py",
+        notes="Extracted via round_context.extract_round_context(). Marks round action start for time_in_round computation.",
     ),
     "round_mvp": GameEventSpec(
         name="round_mvp",

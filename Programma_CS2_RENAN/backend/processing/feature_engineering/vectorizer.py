@@ -25,62 +25,109 @@ _z_penalty_warned = False
 METADATA_DIM = 25
 
 # CS2 weapon name -> weapon class mapping (normalized 0-1)
-# Keys are lowercase demoparser2 weapon names.
+# Keys are lowercase. Includes both internal names (e.g. "ak47") and
+# demoparser2 display names (e.g. "ak-47") for compatibility.
 # Categories: 0.0=knife, 0.2=pistol, 0.4=SMG, 0.6=rifle, 0.8=sniper, 1.0=heavy
 WEAPON_CLASS_MAP: Dict[str, float] = {
-    # Knife = 0.0
+    # Knife = 0.0 (internal + display names + all skin variants)
     "knife": 0.0,
     "knife_t": 0.0,
     "bayonet": 0.0,
+    "butterfly knife": 0.0,
+    "classic knife": 0.0,
+    "falchion knife": 0.0,
+    "flip knife": 0.0,
+    "gut knife": 0.0,
+    "huntsman knife": 0.0,
+    "karambit": 0.0,
+    "kukri knife": 0.0,
+    "m9 bayonet": 0.0,
+    "navaja knife": 0.0,
+    "nomad knife": 0.0,
+    "paracord knife": 0.0,
+    "shadow daggers": 0.0,
+    "skeleton knife": 0.0,
+    "stiletto knife": 0.0,
+    "survival knife": 0.0,
+    "talon knife": 0.0,
+    "ursus knife": 0.0,
     # Pistols = 0.2
     "glock": 0.2,
+    "glock-18": 0.2,
     "hkp2000": 0.2,
+    "p2000": 0.2,
     "usp_silencer": 0.2,
+    "usp-s": 0.2,
     "p250": 0.2,
     "elite": 0.2,
+    "dual berettas": 0.2,
     "fiveseven": 0.2,
+    "five-seven": 0.2,
     "tec9": 0.2,
+    "tec-9": 0.2,
     "cz75a": 0.2,
+    "cz75-auto": 0.2,
     "deagle": 0.2,
+    "desert eagle": 0.2,
     "revolver": 0.2,
+    "r8 revolver": 0.2,
     # SMGs = 0.4
     "mac10": 0.4,
+    "mac-10": 0.4,
     "mp9": 0.4,
     "mp7": 0.4,
     "mp5sd": 0.4,
+    "mp5-sd": 0.4,
     "ump45": 0.4,
+    "ump-45": 0.4,
     "p90": 0.4,
     "bizon": 0.4,
+    "pp-bizon": 0.4,
     # Rifles = 0.6
     "ak47": 0.6,
+    "ak-47": 0.6,
     "m4a1": 0.6,
+    "m4a4": 0.6,
     "m4a1_silencer": 0.6,
+    "m4a1-s": 0.6,
     "famas": 0.6,
     "galilar": 0.6,
+    "galil ar": 0.6,
     "sg556": 0.6,
+    "sg 553": 0.6,
     "aug": 0.6,
     # Snipers = 0.8
     "awp": 0.8,
     "ssg08": 0.8,
+    "ssg 08": 0.8,
     "scar20": 0.8,
+    "scar-20": 0.8,
     "g3sg1": 0.8,
     # Heavy = 1.0
     "nova": 1.0,
     "xm1014": 1.0,
     "mag7": 1.0,
+    "mag-7": 1.0,
     "sawedoff": 1.0,
+    "sawed-off": 1.0,
     "m249": 1.0,
     "negev": 1.0,
-    # H-12: Grenades = 0.1 (utility, not a primary weapon class)
+    # Grenades / Utility = 0.1
     "flashbang": 0.1,
     "smokegrenade": 0.1,
+    "smoke grenade": 0.1,
     "hegrenade": 0.1,
+    "high explosive grenade": 0.1,
     "molotov": 0.1,
     "incgrenade": 0.1,
+    "incendiary grenade": 0.1,
     "decoy": 0.1,
-    # H-12: Special equipment = 0.05
+    "decoy grenade": 0.1,
+    # Special equipment = 0.05
     "taser": 0.05,
+    "zeus x27": 0.05,
     "c4": 0.05,
+    "c4 explosive": 0.05,
 }
 
 # H-12: Sentinel for truly unknown weapons — logged at WARNING on first occurrence

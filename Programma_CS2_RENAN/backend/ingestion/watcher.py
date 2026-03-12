@@ -9,7 +9,7 @@ from watchdog.observers import Observer
 
 from Programma_CS2_RENAN.backend.storage.database import get_db_manager
 from Programma_CS2_RENAN.backend.storage.db_models import CoachState, IngestionTask
-from Programma_CS2_RENAN.core.config import DEFAULT_DEMO_PATH, PRO_DEMO_PATH
+from Programma_CS2_RENAN.core.config import get_setting
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.watcher")
@@ -210,13 +210,18 @@ class IngestionWatcher:
         if self.running:
             return
 
+        # C-01 fix: read current paths via get_setting() instead of stale
+        # module-level imports that never update after refresh_settings().
+        user_path = get_setting("DEFAULT_DEMO_PATH", os.path.expanduser("~"))
+        pro_path = get_setting("PRO_DEMO_PATH", os.path.expanduser("~"))
+
         # Ensure directories exist
-        os.makedirs(DEFAULT_DEMO_PATH, exist_ok=True)
-        os.makedirs(PRO_DEMO_PATH, exist_ok=True)
+        os.makedirs(user_path, exist_ok=True)
+        os.makedirs(pro_path, exist_ok=True)
 
         # Schedule watchers
-        self.observer.schedule(self.user_handler, DEFAULT_DEMO_PATH, recursive=False)
-        self.observer.schedule(self.pro_handler, PRO_DEMO_PATH, recursive=False)
+        self.observer.schedule(self.user_handler, user_path, recursive=False)
+        self.observer.schedule(self.pro_handler, pro_path, recursive=False)
 
         self.observer.start()
         self.running = True

@@ -13,11 +13,11 @@ from Programma_CS2_RENAN.Train_ML_Cycle import run_training_cycle
 
 
 @pytest.mark.integration
-def test_e2e_user_journey():
+def test_e2e_user_journey(isolated_settings):
     """
     End-to-End Test (E2E): Simulate full lifecycle using real DB data.
     1. Initialize System
-    2. Configure User (with cleanup)
+    2. Configure User (writes to temp file via isolated_settings fixture)
     3. Verify sufficient real data exists (skip-gate)
     4. Run ML Training
     """
@@ -25,40 +25,28 @@ def test_e2e_user_journey():
 
     from Programma_CS2_RENAN.backend.storage.database import get_db_manager
     from Programma_CS2_RENAN.backend.storage.db_models import PlayerMatchStats
-    from Programma_CS2_RENAN.core.config import load_user_settings, save_user_setting
+    from Programma_CS2_RENAN.core.config import save_user_setting
 
     # 1. Init
     init_database()
 
-    # 2. Config — save and restore original value
-    original_settings = load_user_settings()
-    original_name = original_settings.get("CS2_PLAYER_NAME")
+    # 2. Config — writes to temp file, never touches real user_settings.json
+    save_user_setting("CS2_PLAYER_NAME", "E2E_Test_Player")
 
+    # 3. Verify sufficient real data exists (skip-gate — no synthetic seeding)
+    db = get_db_manager()
+    with db.get_session() as session:
+        real_stats = session.exec(select(PlayerMatchStats).limit(10)).all()
+    if len(real_stats) < 5:
+        pytest.skip(
+            f"Not enough real data for E2E test (found {len(real_stats)}, need 5+). "
+            "Run ingestion first to populate the database."
+        )
+
+    # 4. Run Training Cycle with real data
     try:
-        save_user_setting("CS2_PLAYER_NAME", "E2E_Test_Player")
+        run_training_cycle()
+    except Exception as e:
+        pytest.fail(f"E2E Lifecycle Failed during Training: {e}")
 
-        # 3. Verify sufficient real data exists (skip-gate — no synthetic seeding)
-        db = get_db_manager()
-        with db.get_session() as session:
-            real_stats = session.exec(select(PlayerMatchStats).limit(10)).all()
-        if len(real_stats) < 5:
-            pytest.skip(
-                f"Not enough real data for E2E test (found {len(real_stats)}, need 5+). "
-                "Run ingestion first to populate the database."
-            )
-
-        # 4. Run Training Cycle with real data
-        try:
-            run_training_cycle()
-        except Exception as e:
-            pytest.fail(f"E2E Lifecycle Failed during Training: {e}")
-
-        print("E2E Backend Lifecycle Complete.")
-
-    finally:
-        # Restore original player name — handle None case to avoid permanent pollution
-        if original_name is not None:
-            save_user_setting("CS2_PLAYER_NAME", original_name)
-        else:
-            # Original was unset; remove the test value to restore clean state
-            save_user_setting("CS2_PLAYER_NAME", "")
+    print("E2E Backend Lifecycle Complete.")

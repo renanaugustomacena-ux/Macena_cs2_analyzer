@@ -374,8 +374,8 @@ class TrainingOrchestrator:
                 padding = torch.zeros(1, 10 - context.shape[1], METADATA_DIM).to(self.device)
                 context = torch.cat([context, padding], dim=1)
 
-            # Target: next item prediction (or last item if at end)
-            target = features_tensor[-1:].mean(dim=0, keepdim=True)  # (1, METADATA_DIM)
+            # Target: next item prediction — must be 3D (B, seq_len, input_dim)
+            target = features_tensor[-1:].unsqueeze(0)  # (1, 1, METADATA_DIM)
 
             # Negatives: random samples from batch — require at least 5 real samples
             if b >= 5:

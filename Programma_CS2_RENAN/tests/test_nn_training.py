@@ -181,5 +181,5 @@ class TestTrainingControllerHelpers:
 
     def test_constants(self):
         from Programma_CS2_RENAN.backend.nn.training_controller import TrainingController
-        assert TrainingController.MAX_DEMOS_PER_MONTH == 10
+        assert TrainingController._DEFAULT_MAX_DEMOS_PER_MONTH == 10
         assert TrainingController.MIN_DIVERSITY_SCORE == 0.3

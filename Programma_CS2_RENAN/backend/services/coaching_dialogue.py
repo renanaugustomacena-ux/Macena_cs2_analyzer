@@ -104,6 +104,8 @@ class CoachingDialogueEngine:
         self._system_prompt: str = ""
         self._history: List[Dict[str, str]] = []
         self._session_active: bool = False
+        # C-06: Protect mutable session state from concurrent UI thread access
+        self._state_lock = threading.Lock()
 
     # ------------------------------------------------------------------
     # Session lifecycle
@@ -115,64 +117,68 @@ class CoachingDialogueEngine:
         demo_name: Optional[str] = None,
     ) -> str:
         """Load player context and return an opening coaching message."""
-        self._player_context = self._build_player_context(player_name, demo_name)
-        self._system_prompt = self._build_system_prompt()
-        self._history = []
-        self._session_active = True
+        with self._state_lock:
+            self._player_context = self._build_player_context(player_name, demo_name)
+            self._system_prompt = self._build_system_prompt()
+            self._history = []
+            self._session_active = True
 
-        opening = self._generate_opening()
-        self._history.append({"role": "assistant", "content": opening})
-        logger.info("Dialogue session started for player=%s", player_name)
-        return opening
+            opening = self._generate_opening()
+            self._history.append({"role": "assistant", "content": opening})
+            logger.info("Dialogue session started for player=%s", player_name)
+            return opening
 
     def respond(self, user_message: str) -> str:
         """Process a user question and return a coaching response."""
-        if not self._session_active:
-            return self._fallback_response(user_message, self._classify_intent(user_message))
+        with self._state_lock:
+            if not self._session_active:
+                return self._fallback_response(user_message, self._classify_intent(user_message))
 
-        intent = self._classify_intent(user_message)
-        retrieval_context = self._retrieve_context(user_message, intent)
+            intent = self._classify_intent(user_message)
+            retrieval_context = self._retrieve_context(user_message, intent)
 
-        # Build the augmented user message with retrieval context
-        augmented_user = user_message
-        if retrieval_context:
-            augmented_user = (
-                f"{user_message}\n\n"
-                f"[Retrieved coaching knowledge for reference — "
-                f"use if relevant, ignore if not]\n{retrieval_context}"
-            )
+            # Build the augmented user message with retrieval context
+            augmented_user = user_message
+            if retrieval_context:
+                augmented_user = (
+                    f"{user_message}\n\n"
+                    f"[Retrieved coaching knowledge for reference — "
+                    f"use if relevant, ignore if not]\n{retrieval_context}"
+                )
 
-        # Build message array for Ollama (sliding window — history NOT yet mutated)
-        messages = self._build_chat_messages(augmented_user)
+            # Build message array for Ollama (sliding window — history NOT yet mutated)
+            messages = self._build_chat_messages(augmented_user)
 
-        # F5-06: append user message only after we have a valid response so that
-        # an LLM exception cannot leave the history in an inconsistent state.
-        try:
-            response = self._llm.chat(messages, system_prompt=self._system_prompt)
-        except Exception as exc:
-            logger.error("LLM chat raised an exception: %s", exc)
-            response = self._fallback_response(user_message, intent)
+            # F5-06: append user message only after we have a valid response so that
+            # an LLM exception cannot leave the history in an inconsistent state.
+            try:
+                response = self._llm.chat(messages, system_prompt=self._system_prompt)
+            except Exception as exc:
+                logger.error("LLM chat raised an exception: %s", exc)
+                response = self._fallback_response(user_message, intent)
 
-        # Check for LLM error markers → fall back
-        if response.startswith("[LLM"):
-            logger.warning("LLM error in dialogue: %s", response)
-            response = self._fallback_response(user_message, intent)
+            # Check for LLM error markers → fall back
+            if response.startswith("[LLM"):
+                logger.warning("LLM error in dialogue: %s", response)
+                response = self._fallback_response(user_message, intent)
 
-        # Safe to append now that we have a usable response
-        self._history.append({"role": "user", "content": user_message})
-        self._history.append({"role": "assistant", "content": response})
-        return response
+            # Safe to append now that we have a usable response
+            self._history.append({"role": "user", "content": user_message})
+            self._history.append({"role": "assistant", "content": response})
+            return response
 
     def get_history(self) -> List[Dict[str, str]]:
         """Return the full conversation history."""
-        return list(self._history)
+        with self._state_lock:
+            return list(self._history)
 
     def clear_session(self):
         """Reset the dialogue session."""
-        self._history = []
-        self._player_context = {}
-        self._session_active = False
-        logger.info("Dialogue session cleared")
+        with self._state_lock:
+            self._history = []
+            self._player_context = {}
+            self._session_active = False
+            logger.info("Dialogue session cleared")
 
     @property
     def is_available(self) -> bool:

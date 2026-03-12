@@ -4,7 +4,7 @@ import sys
 import pytest
 import torch
 
-from Programma_CS2_RENAN.backend.nn.win_probability_trainer import WinProbabilityNN, predict_win_prob
+from Programma_CS2_RENAN.backend.nn.win_probability_trainer import WinProbabilityTrainerNN, predict_win_prob
 from Programma_CS2_RENAN.backend.processing.baselines.pro_baseline import get_pro_baseline
 from Programma_CS2_RENAN.backend.processing.external_analytics import EliteAnalytics
 
@@ -30,7 +30,7 @@ class TestIntegration:
     def test_win_probability_model(self):
         """Pipeline smoke test: model forward pass produces valid sigmoid output."""
         torch.manual_seed(42)
-        win_model = WinProbabilityNN()
+        win_model = WinProbabilityTrainerNN()
         # CT has clear advantage: 5v3, more health, more equipment
         ct_advantage_state = {
             "ct_alive": 5,

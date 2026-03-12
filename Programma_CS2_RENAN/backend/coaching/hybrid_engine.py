@@ -30,26 +30,25 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.hybrid_coaching")
 
-# H-03: Fallback baseline with version annotation so staleness is traceable.
-# Source: HLTV professional averages, January 2024 snapshot.
-# WARNING: Update these values periodically from fresh HLTV scrapes.
-# Staleness beyond 6 months degrades coaching accuracy.
+# C-41: Fallback baseline with {mean, std} pairs so Z-scores are non-zero.
+# This is the LAST-RESORT fallback — primary fallback is HARD_DEFAULT_BASELINE
+# from pro_baseline.py which is imported dynamically in _load_pro_baseline().
 _FALLBACK_BASELINE_VERSION = "2024-01"
-_FALLBACK_BASELINE_SOURCE = "HLTV 2024 January professional averages"
+_FALLBACK_BASELINE_SOURCE = "HLTV 2024 January professional averages (local emergency fallback)"
 _FALLBACK_BASELINE_MAX_AGE_DAYS = 180
 _FALLBACK_BASELINE = {
-    "avg_kills": 0.78,
-    "avg_deaths": 0.62,
-    "avg_adr": 82.0,
-    "avg_hs": 0.52,
-    "avg_kast": 0.74,
-    "kd_ratio": 1.20,
-    "impact_rounds": 0.35,
-    "accuracy": 0.22,
-    "econ_rating": 1.05,
-    "rating": 1.15,
-    "utility_damage": 45.0,
-    "entry_rate": 0.25,
+    "avg_kills": {"mean": 0.78, "std": 0.12},
+    "avg_deaths": {"mean": 0.62, "std": 0.08},
+    "avg_adr": {"mean": 82.0, "std": 12.0},
+    "avg_hs": {"mean": 0.52, "std": 0.10},
+    "avg_kast": {"mean": 0.74, "std": 0.05},
+    "kd_ratio": {"mean": 1.20, "std": 0.20},
+    "impact_rounds": {"mean": 0.35, "std": 0.10},
+    "accuracy": {"mean": 0.22, "std": 0.05},
+    "econ_rating": {"mean": 1.05, "std": 0.15},
+    "rating": {"mean": 1.15, "std": 0.15},
+    "utility_damage": {"mean": 45.0, "std": 10.0},
+    "entry_rate": {"mean": 0.25, "std": 0.08},
 }
 
 
@@ -184,32 +183,27 @@ class HybridCoachingEngine:
         except Exception as e:
             logger.error(
                 "Failed to load dynamic baseline: %s. "
-                "Using HARDCODED fallback — coaching quality is DEGRADED.",
+                "Using fallback — coaching quality is DEGRADED.",
                 e,
             )
-            # Fallback only if module fails completely.
-            # WARNING: These values are stale approximations, not from real data.
-            # _using_fallback_baseline=True causes insights to be tagged with
-            # baseline_quality="degraded" so callers can display a warning (F4-02).
             self._using_fallback_baseline = True
-            logger.warning(
-                "H-03: Using fallback baseline v%s (%s)",
-                _FALLBACK_BASELINE_VERSION,
-                _FALLBACK_BASELINE_SOURCE,
-            )
-            from datetime import datetime
+            # C-41: Use HARD_DEFAULT_BASELINE from pro_baseline.py first — it
+            # includes std values required for valid Z-score computation.
+            # The local _FALLBACK_BASELINE is absolute last resort only.
             try:
-                baseline_date = datetime.strptime(_FALLBACK_BASELINE_VERSION, "%Y-%m")
-                age_days = (datetime.now() - baseline_date).days
-                if age_days > _FALLBACK_BASELINE_MAX_AGE_DAYS:
-                    logger.warning(
-                        "Fallback baseline is %d days old (max recommended: %d). "
-                        "Run HLTV scraper to refresh pro baselines.",
-                        age_days, _FALLBACK_BASELINE_MAX_AGE_DAYS,
-                    )
-            except ValueError:
-                pass
-            return dict(_FALLBACK_BASELINE)
+                from Programma_CS2_RENAN.backend.processing.baselines.pro_baseline import (
+                    HARD_DEFAULT_BASELINE,
+                )
+                logger.warning(
+                    "C-41: Using HARD_DEFAULT_BASELINE (includes std values for Z-scores)"
+                )
+                return dict(HARD_DEFAULT_BASELINE)
+            except Exception:
+                logger.critical(
+                    "C-41: Cannot import HARD_DEFAULT_BASELINE — using local fallback v%s",
+                    _FALLBACK_BASELINE_VERSION,
+                )
+                return dict(_FALLBACK_BASELINE)
 
     def generate_insights(
         self,

@@ -9,7 +9,7 @@
 The Processing Pipeline is the data transformation backbone of the CS2 Coach — responsible for converting raw demo tick data into feature vectors, tensors, baselines, heatmaps, and skill assessments that feed the ML models and coaching engine.
 
 **Total files audited:** 28
-**Findings breakdown:** 4 HIGH / 16 MEDIUM / 12 LOW (32 total)
+**Findings breakdown:** ~~4~~ 0 HIGH (4 FIXED) / 16 MEDIUM / 12 LOW (32 total, 4 resolved)
 
 **Critical cross-references:**
 - Report 6 (Storage): ProPlayerStatCard unbounded JSON field affects `stat_aggregator.py` → consumed by `pro_baseline.py`
@@ -142,7 +142,7 @@ The Processing Pipeline is the data transformation backbone of the CS2 Coach —
 
 | # | Severity | Category | Line(s) | Finding | Recommendation |
 |---|----------|----------|---------|---------|----------------|
-| P3-18 | HIGH | Correctness | 79-82 | `_prepare_tournament()` accesses `self.tournament_df[["accuracy", "econ_rating", "utility_value"]]` without checking that these columns exist. If the `tournament_advanced_stats.csv` file has different column names (or a subset), this raises `KeyError` and crashes `EliteAnalytics.__init__()`, making the entire analytics subsystem unavailable. | Filter `adv` to only include columns present in `tournament_df.columns` before accessing. Log missing columns at WARNING. |
+| P3-18 | ~~HIGH~~ **FIXED** | Correctness | 79-82 | `_prepare_tournament()` accesses `self.tournament_df[["accuracy", "econ_rating", "utility_value"]]` without checking that these columns exist. If the `tournament_advanced_stats.csv` file has different column names (or a subset), this raises `KeyError` and crashes `EliteAnalytics.__init__()`, making the entire analytics subsystem unavailable. | **FIXED (2fa2cf3):** Column existence is now guarded via `[c for c in adv if c in self.tournament_df.columns]` before accessing. |
 | P3-19 | LOW | Observability | 173-178 | Z-score calculations skip NaN/Inf values (via `np.isfinite()` guard) but don't report how many values were skipped. A dataset with mostly NaN values would produce valid-looking but statistically meaningless Z-scores. | Log the skip count when > 0. If > 50% of values are skipped, return empty dict with a warning. |
 
 ---
@@ -193,8 +193,8 @@ The Processing Pipeline is the data transformation backbone of the CS2 Coach —
 
 | # | Severity | Category | Line(s) | Finding | Recommendation |
 |---|----------|----------|---------|---------|----------------|
-| P3-26 | HIGH | Performance | 434 | `get_temporal_baseline()` calls `session.exec(query).all()` on ProPlayerStatCard with no `.limit()`. Unlike `_load_pro_from_db()` which caps at 5,000 rows, the temporal path loads the entire table into memory. With a growing HLTV scraper, this could be tens of thousands of ORM objects. | Add `.limit(10_000)` to the temporal query, or use `.yield_per(500)` to stream results. |
-| P3-27 | HIGH | Correctness | 504-514 | `_metric_to_baseline_key()` maps both `"opening_kill_ratio"` and `"opening_duel_win_pct"` to the same output key `"opening_duel_win_pct"`. Since `BASELINE_METRICS` contains both, `compute_weighted_baseline()` processes both — the second silently overwrites the first in the baseline dict, producing incorrect weighted statistics. | Remove the duplicate mapping. Keep only one of the two source metrics, or map them to distinct baseline keys. |
+| P3-26 | ~~HIGH~~ **FIXED** | Performance | 434 | `get_temporal_baseline()` calls `session.exec(query).all()` on ProPlayerStatCard with no `.limit()`. Unlike `_load_pro_from_db()` which caps at 5,000 rows, the temporal path loads the entire table into memory. With a growing HLTV scraper, this could be tens of thousands of ORM objects. | **FIXED (2fa2cf3):** Query now uses `.limit(5000)` to bound result set. |
+| P3-27 | ~~HIGH~~ **FIXED** | Correctness | 504-514 | `_metric_to_baseline_key()` maps both `"opening_kill_ratio"` and `"opening_duel_win_pct"` to the same output key `"opening_duel_win_pct"`. Since `BASELINE_METRICS` contains both, `compute_weighted_baseline()` processes both — the second silently overwrites the first in the baseline dict, producing incorrect weighted statistics. | **FIXED (2fa2cf3):** Each metric now maps to its own distinct key (`opening_kill_ratio` → `opening_kill_ratio`, `opening_duel_win_pct` → `opening_duel_win_pct`). |
 | P3-28 | MEDIUM | Correctness | 122 | Survival rate approximation `max(0.0, min(1.0, 1.0 - c.dpr))` is a crude linear proxy. HLTV doesn't expose a dedicated survival metric, and `dpr` (deaths per round) doesn't capture survival nuance (clutch ability, trade positioning). Values near 0.38 (documented mean) are plausible but the approximation breaks down at extremes. | Document as a known approximation limitation. Consider using `rounds_survived / rounds_played` if available from stat cards. |
 | P3-29 | LOW | Code Quality | 301-305 | `import math`, `from datetime import ...`, and `from typing import List` appear mid-file (line 301-305) instead of at the top. While not harmful, this violates PEP 8 import ordering and makes the file harder to scan. | Move imports to the top of the file. |
 
@@ -204,7 +204,7 @@ The Processing Pipeline is the data transformation backbone of the CS2 Coach —
 
 | # | Severity | Category | Line(s) | Finding | Recommendation |
 |---|----------|----------|---------|---------|----------------|
-| P3-30 | HIGH | Performance | 55-60 | `calculate_spatial_drift()` historical tick query (`hist_stmt`) has NO `.limit()` clause. For maps with extensive pro match history, this could load millions of PlayerTickState rows into memory, causing OOM. The recent query is similarly unbounded. | Add `.limit(50_000)` to both recent and historical queries. The centroid calculation converges with much fewer samples. |
+| P3-30 | ~~HIGH~~ **FIXED** | Performance | 55-60 | `calculate_spatial_drift()` historical tick query (`hist_stmt`) has NO `.limit()` clause. For maps with extensive pro match history, this could load millions of PlayerTickState rows into memory, causing OOM. The recent query is similarly unbounded. | **FIXED (2fa2cf3):** Both recent and historical queries now have `.limit(50_000)`. |
 | P3-31 | MEDIUM | Architecture | 32-60 | `calculate_spatial_drift()` queries `PlayerTickState` from the monolith DB, but detailed tick data lives in per-match SQLite databases (via `MatchDataManager`). The monolith's tick data may be sparse or incomplete, reducing spatial drift accuracy. | Consider querying per-match databases (like `get_pro_positions()` in `pro_baseline.py` does) for more complete spatial data. |
 
 ---
@@ -302,10 +302,10 @@ Most of the pipeline uses `datetime.now(timezone.utc)` (meta_drift.py, pro_basel
 
 | Priority | ID | Severity | Effort | Description |
 |----------|-----|----------|--------|-------------|
-| 1 | P3-30 | HIGH | Low | Add `.limit()` to meta_drift spatial queries |
-| 2 | P3-26 | HIGH | Low | Add `.limit()` to temporal baseline query |
-| 3 | P3-27 | HIGH | Low | Fix duplicate metric mapping in `_metric_to_baseline_key()` |
-| 4 | P3-18 | HIGH | Low | Guard tournament column access in external_analytics |
+| ~~1~~ | P3-30 | ~~HIGH~~ **FIXED** | Low | ~~Add `.limit()` to meta_drift spatial queries~~ — Fixed in 2fa2cf3 |
+| ~~2~~ | P3-26 | ~~HIGH~~ **FIXED** | Low | ~~Add `.limit()` to temporal baseline query~~ — Fixed in 2fa2cf3 |
+| ~~3~~ | P3-27 | ~~HIGH~~ **FIXED** | Low | ~~Fix duplicate metric mapping in `_metric_to_baseline_key()`~~ — Fixed in 2fa2cf3 |
+| ~~4~~ | P3-18 | ~~HIGH~~ **FIXED** | Low | ~~Guard tournament column access in external_analytics~~ — Fixed in 2fa2cf3 |
 | 5 | P3-01 | MEDIUM | Medium | Add HMAC integrity check to joblib scaler files |
 | 6 | P3-06 | MEDIUM | Medium | Dynamic FOV based on weapon/scope state |
 | 7 | P3-35 | MEDIUM | Low | Case-insensitive SQL query for nickname exact match |

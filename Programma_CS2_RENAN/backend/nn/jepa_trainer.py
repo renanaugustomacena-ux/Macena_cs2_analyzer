@@ -35,7 +35,10 @@ class JEPATrainer:
     ):
         self.model = model
         # NN-36: Exclude target encoder (EMA-only, never receives gradients)
-        trainable = [p for n, p in model.named_parameters() if "target_encoder" not in n]
+        for n, p in model.named_parameters():
+            if "target_encoder" in n:
+                p.requires_grad = False
+        trainable = [p for p in model.parameters() if p.requires_grad]
         self.optimizer = optim.AdamW(trainable, lr=lr, weight_decay=weight_decay)
         self.scheduler = optim.lr_scheduler.CosineAnnealingLR(self.optimizer, T_max=100)
 

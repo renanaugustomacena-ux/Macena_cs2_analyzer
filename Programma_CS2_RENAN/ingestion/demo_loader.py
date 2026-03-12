@@ -4,6 +4,7 @@ import os
 import pickle
 from typing import Dict, List, Tuple
 
+import numpy as np
 import pandas as pd
 from demoparser2 import DemoParser
 
@@ -92,7 +93,7 @@ class DemoLoader:
         CACHE_DIR = os.path.join(_DATA_DIR, "demo_cache")
     except ImportError:
         CACHE_DIR = os.path.join(os.path.dirname(__file__), "cache")
-    CACHE_VERSION = "v20_money_fix"  # Increment to invalidate old caches
+    CACHE_VERSION = "v21_vectorized_parse"  # D-26: groupby + pre-vectorized columns
 
     @staticmethod
     def load_demo(
@@ -376,118 +377,118 @@ class DemoLoader:
         except Exception as e:
             app_logger.error("Error parsing ticks in Pass 3: %s", e)
 
+        # D-26: Pre-vectorize columns to minimize per-row Python overhead.
+        # Iterates ~172K tick groups instead of ~1.7M individual rows.
         frames: List[DemoFrame] = []
-        current_tick = -1
-        current_players: List[PlayerState] = []
 
-        # DS-06: Removed dead commented-out guard and debug-only logging.
-        for row in rows_df.itertuples():
-            t = int(getattr(row, "tick", 0))
-            sid = int(getattr(row, "steamid", 0) or 0)
-            if t != current_tick:
-                if current_tick != -1:
-                    r_idx = 1
-                    for i, r_t in enumerate(round_starts):
-                        if r_t <= current_tick:
-                            r_idx = i + 1
-                        else:
-                            break
-                    st_t = (
-                        round_starts[r_idx - 1]
-                        if (round_starts and r_idx <= len(round_starts))
-                        else 0
+        if not rows_df.empty:
+            # --- Money: coalesce across demoparser2 field name variants (H-03) ---
+            _money_series = pd.Series(np.nan, index=rows_df.index)
+            _found_money_col = False
+            for _mf in ("balance", "cash", "money", "m_iAccount"):
+                if _mf in rows_df.columns:
+                    _money_series = _money_series.fillna(rows_df[_mf])
+                    _found_money_col = True
+            if not _found_money_col:
+                # R3-02: No money column at all — log once instead of per-row
+                app_logger.warning(
+                    "R3-02: No money column found in parsed data — all money values default to 0"
+                )
+            rows_df["money_resolved"] = _money_series.fillna(0).astype(int)
+
+            # --- Team: vectorized string classification ---
+            _tu = rows_df["team_name"].fillna("").astype(str).str.upper()
+            rows_df["team_resolved"] = np.where(
+                _tu.str.contains("CT", na=False), "CT",
+                np.where(_tu.str.contains("TER", na=False), "T", "SPEC"),
+            )
+
+            # --- Round index: O(n log m) via searchsorted (replaces O(n*m) linear scan) ---
+            if round_starts:
+                _rs_arr = np.array(round_starts)
+                rows_df["round_resolved"] = np.clip(
+                    np.searchsorted(_rs_arr, rows_df["tick"].values, side="right"),
+                    1, len(_rs_arr),
+                )
+            else:
+                rows_df["round_resolved"] = 1
+
+            # --- NaN-safe numeric fills (one vectorized pass instead of per-row getattr) ---
+            _fill_map = {
+                "X": 0.0, "Y": 0.0, "Z": 0.0, "yaw": 0.0,
+                "armor_value": 0, "flash_duration": 0.0,
+                "equipment_value": 0, "kills_total": 0, "deaths_total": 0,
+                "assists_total": 0, "mvps": 0,
+            }
+            for _col, _default in _fill_map.items():
+                if _col in rows_df.columns:
+                    rows_df[_col] = rows_df[_col].fillna(_default)
+
+            # Health: NaN → 0 if column exists, else default 100 (column missing entirely)
+            if "health" in rows_df.columns:
+                rows_df["health"] = rows_df["health"].fillna(0)
+            else:
+                rows_df["health"] = 100
+
+            _rs_list = round_starts if round_starts else []
+            _team_map = {"CT": Team.CT, "T": Team.T, "SPEC": Team.SPECTATOR}
+
+            for tick_val, group in rows_df.groupby("tick", sort=True):
+                tick_int = int(tick_val)
+                r_idx = int(group.iloc[0]["round_resolved"])
+                st_t = _rs_list[r_idx - 1] if (_rs_list and r_idx <= len(_rs_list)) else 0
+
+                players = []
+                for row in group.itertuples():
+                    sid = int(getattr(row, "steamid", 0) or 0)
+                    team = _team_map.get(row.team_resolved, Team.SPECTATOR)
+
+                    hp_val = int(row.health)
+
+                    # R3-H01: active weapon only (demoparser2 limitation)
+                    active_weapon = str(getattr(row, "active_weapon_name", "None"))
+                    _inventory = (
+                        [active_weapon] if active_weapon and active_weapon != "None" else []
                     )
-                    frames.append(
-                        DemoFrame(
-                            tick=current_tick,
-                            round_number=r_idx,
-                            time_in_round=(current_tick - st_t) / tick_rate,
-                            map_name=default_map,
-                            players=current_players,
-                            nades=nades_by_tick.get(current_tick, []),
-                            bomb=None,
+
+                    players.append(
+                        PlayerState(
+                            player_id=sid,
+                            name=str(getattr(row, "name", "Unknown")),
+                            team=team,
+                            x=float(row.X),
+                            y=float(row.Y),
+                            z=float(row.Z),
+                            yaw=float(row.yaw),
+                            hp=hp_val,
+                            armor=int(row.armor_value),
+                            is_alive=bool(getattr(row, "is_alive", False)),
+                            is_flashed=float(row.flash_duration) > 0.5,
+                            has_defuser=bool(getattr(row, "defuse_kit_owned", False)),
+                            weapon=active_weapon,
+                            is_crouching=bool(getattr(row, "is_crouching", False)),
+                            is_scoped=bool(getattr(row, "is_scoped", False)),
+                            equipment_value=int(row.equipment_value),
+                            money=int(row.money_resolved),
+                            kills=int(row.kills_total),
+                            deaths=int(row.deaths_total),
+                            assists=int(row.assists_total),
+                            mvps=int(row.mvps),
+                            inventory=_inventory,
                         )
                     )
-                current_tick = t
-                current_players = []
 
-            t_str = str(getattr(row, "team_name", "")).upper()
-            team = Team.SPECTATOR
-            if "CT" in t_str:
-                team = Team.CT
-            elif "TER" in t_str:
-                team = Team.T
-
-            # FIXED: hp should not default to 100 if 0 (dead)
-            hp_val = int(getattr(row, "health", 0)) if hasattr(row, "health") else 100
-
-            # H-03: Fetch money with fallback field names for demoparser2 compatibility
-            money_val = 0
-            for _money_field in ("balance", "cash", "money", "m_iAccount"):
-                _raw = getattr(row, _money_field, None)
-                if _raw is not None:
-                    # R3-02: Use int(_raw) directly — `_raw or 0` incorrectly
-                    # treated legitimate zero-money (eco round) as missing.
-                    money_val = int(_raw)
-                    break
-            else:
-                # R3-02: All money fields missing — log for data quality tracking
-                app_logger.warning(
-                    "No money field found for player at tick %d — defaulting to 0",
-                    t,
+                frames.append(
+                    DemoFrame(
+                        tick=tick_int,
+                        round_number=r_idx,
+                        time_in_round=(tick_int - st_t) / tick_rate,
+                        map_name=default_map,
+                        players=players,
+                        nades=nades_by_tick.get(tick_int, []),
+                        bomb=None,
+                    )
                 )
-
-            # R3-H01: Populate inventory with the active weapon. demoparser2 does
-            # not expose a full inventory list per tick, so active weapon only.
-            active_weapon = str(getattr(row, "active_weapon_name", "None"))
-            _inventory = [active_weapon] if active_weapon and active_weapon != "None" else []
-            current_players.append(
-                PlayerState(
-                    player_id=sid,
-                    name=str(getattr(row, "name", "Unknown")),
-                    team=team,
-                    x=float(getattr(row, "X", 0.0) or 0.0),
-                    y=float(getattr(row, "Y", 0.0) or 0.0),
-                    z=float(getattr(row, "Z", 0.0) or 0.0),
-                    yaw=float(getattr(row, "yaw", 0.0) or 0.0),
-                    hp=hp_val,
-                    armor=int(getattr(row, "armor_value", 0) or 0),
-                    is_alive=bool(getattr(row, "is_alive", False)),
-                    is_flashed=float(getattr(row, "flash_duration", 0.0) or 0.0) > 0.5,
-                    has_defuser=bool(getattr(row, "defuse_kit_owned", False)),
-                    weapon=active_weapon,
-                    is_crouching=bool(getattr(row, "is_crouching", False)),
-                    is_scoped=bool(getattr(row, "is_scoped", False)),
-                    equipment_value=int(getattr(row, "equipment_value", 0) or 0),
-                    money=money_val,
-                    kills=int(getattr(row, "kills_total", 0) or 0),
-                    deaths=int(getattr(row, "deaths_total", 0) or 0),
-                    assists=int(getattr(row, "assists_total", 0) or 0),
-                    mvps=int(getattr(row, "mvps", 0) or 0),
-                    inventory=_inventory,
-                )
-            )
-
-        # --- APPEND LAST TICK ---
-        if current_tick != -1:
-            r_idx = 1
-            for i, r_t in enumerate(round_starts):
-                if r_t <= current_tick:
-                    r_idx = i + 1
-                else:
-                    break
-            st_t = round_starts[r_idx - 1] if (round_starts and r_idx <= len(round_starts)) else 0
-            frames.append(
-                DemoFrame(
-                    tick=current_tick,
-                    round_number=r_idx,
-                    time_in_round=(current_tick - st_t) / tick_rate,
-                    map_name=default_map,
-                    players=current_players,
-                    nades=nades_by_tick.get(current_tick, []),
-                    bomb=None,
-                )
-            )
 
         # Resolving Kills
         app_logger.info("Resolving final game events")

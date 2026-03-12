@@ -102,15 +102,15 @@ class TestAddExperience:
         assert exp.confidence == 0.8
 
     def test_add_generates_embedding(self, experience_bank, sample_context):
-        """add_experience stores a JSON-encoded embedding."""
+        """add_experience stores a base64-encoded embedding (AC-32-01)."""
         exp = experience_bank.add_experience(
             context=sample_context,
             action_taken="pushed",
             outcome="death",
         )
         assert exp.embedding is not None
-        vec = json.loads(exp.embedding)
-        assert isinstance(vec, list)
+        vec = experience_bank._deserialize_embedding(exp.embedding)
+        assert isinstance(vec, np.ndarray)
         assert len(vec) > 0
 
     def test_add_with_game_state(self, experience_bank, sample_context):

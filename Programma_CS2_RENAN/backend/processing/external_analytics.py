@@ -124,16 +124,15 @@ class EliteAnalytics:
     def get_tournament_baseline(self):
         if not hasattr(self, "tournament_baselines"):
             return {}
-        return {
-            "accuracy": {
-                "mean": self.tournament_baselines["accuracy"],
-                "std": self.tournament_stds["accuracy"],
-            },
-            "econ_rating": {
-                "mean": self.tournament_baselines["econ_rating"],
-                "std": self.tournament_stds["econ_rating"],
-            },
-        }
+        # P3-18: Only include keys that were actually available in the CSV
+        result = {}
+        for key in ("accuracy", "econ_rating"):
+            if key in self.tournament_baselines and key in self.tournament_stds:
+                result[key] = {
+                    "mean": self.tournament_baselines[key],
+                    "std": self.tournament_stds[key],
+                }
+        return result
 
     def get_available_extra_datasets(self):
         """Lists all successfully loaded clinical datasets."""

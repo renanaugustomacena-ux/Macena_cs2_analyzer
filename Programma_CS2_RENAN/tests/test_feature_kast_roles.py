@@ -160,7 +160,7 @@ class TestClassifyRole:
         assert conf == 0.0
 
     def test_entry_stats(self):
-        from Programma_CS2_RENAN.backend.processing.feature_engineering.role_features import classify_role
+        from Programma_CS2_RENAN.backend.processing.feature_engineering.role_features import _heuristic_classify_role
         stats = {
             "opening_attempts_per_round": 0.35,
             "first_kill_pct": 0.18,
@@ -168,12 +168,12 @@ class TestClassifyRole:
             "kpr": 0.78,
             "adr": 85.0,
         }
-        role, conf = classify_role(stats)
+        role, conf = _heuristic_classify_role(stats)
         assert role.value == "entry"
         assert 0.0 <= conf <= 1.0
 
     def test_awper_stats(self):
-        from Programma_CS2_RENAN.backend.processing.feature_engineering.role_features import classify_role
+        from Programma_CS2_RENAN.backend.processing.feature_engineering.role_features import _heuristic_classify_role
         stats = {
             "opening_attempts_per_round": 0.25,
             "first_kill_pct": 0.20,
@@ -181,11 +181,11 @@ class TestClassifyRole:
             "kpr": 0.72,
             "adr": 75.0,
         }
-        role, conf = classify_role(stats)
+        role, conf = _heuristic_classify_role(stats)
         assert role.value == "awper"
 
     def test_support_stats(self):
-        from Programma_CS2_RENAN.backend.processing.feature_engineering.role_features import classify_role
+        from Programma_CS2_RENAN.backend.processing.feature_engineering.role_features import _heuristic_classify_role
         stats = {
             "opening_attempts_per_round": 0.15,
             "first_kill_pct": 0.08,
@@ -193,7 +193,7 @@ class TestClassifyRole:
             "kpr": 0.65,
             "adr": 72.0,
         }
-        role, conf = classify_role(stats)
+        role, conf = _heuristic_classify_role(stats)
         assert role.value == "support"
 
     def test_confidence_bounded(self):

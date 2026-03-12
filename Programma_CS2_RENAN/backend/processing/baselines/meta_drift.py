@@ -33,11 +33,13 @@ class MetaDriftEngine:
         limit_date = datetime.now(timezone.utc) - timedelta(days=30)
 
         with db.get_session() as s:
-            # 1. Get Pro Match IDs
-            pro_stmt = select(PlayerMatchStats.id).where(PlayerMatchStats.is_pro == True)
-            pro_match_ids = s.exec(pro_stmt).all()
-
-            if not pro_match_ids:
+            # P3-30: Use COUNT instead of fetching all IDs (avoids unbounded result set)
+            pro_count = s.exec(
+                select(func.count()).select_from(PlayerMatchStats).where(
+                    PlayerMatchStats.is_pro == True
+                )
+            ).one()
+            if not pro_count:
                 return 0.0
 
             # Refined query with date-aware join

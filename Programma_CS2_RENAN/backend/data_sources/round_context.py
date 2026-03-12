@@ -189,6 +189,10 @@ def assign_round_to_ticks(
     rc = round_context[["round_number", "round_start_tick"]].copy()
     rc = rc.sort_values("round_start_tick")
 
+    # Ensure matching dtypes for merge_asof (demoparser2 may return int32)
+    df_ticks["tick"] = df_ticks["tick"].astype("int64")
+    rc["round_start_tick"] = rc["round_start_tick"].astype("int64")
+
     merged = pd.merge_asof(
         df_ticks,
         rc,

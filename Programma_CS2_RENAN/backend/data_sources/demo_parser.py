@@ -397,7 +397,7 @@ def parse_sequential_ticks(
             "is_scoped",
             "is_blinded",
             # Equipment & Economy
-            "active_weapon",
+            "weapon_name",
             "equipment_value",
             "balance",
             "total_cash_spent",
@@ -453,8 +453,15 @@ def parse_sequential_ticks(
         )
 
         p_col = next((c for c in ["player_name", "name"] if c in df.columns), None)
+        renames = {}
         if p_col:
-            df = df.rename(columns={p_col: "player_name"})
+            renames[p_col] = "player_name"
+        # demoparser2 "weapon_name" returns display names (e.g. "AK-47");
+        # rename to "active_weapon" for downstream compatibility.
+        if "weapon_name" in df.columns:
+            renames["weapon_name"] = "active_weapon"
+        if renames:
+            df = df.rename(columns=renames)
 
         # Filter by start_tick
         if start_tick > 0:

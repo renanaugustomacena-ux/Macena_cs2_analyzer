@@ -454,6 +454,19 @@ def _save_player_stats(db_manager, row, demo_name, is_pro):
             logger.warning("Sanitized NaN/Inf in '%s' for player '%s'", key, p_name)
             stats_dict[key] = 0.0
 
+    # Clamp rating to DB constraint range [0, 5.0] — HLTV 2.0 can produce
+    # negative values for partial demos or extreme underperformance
+    if "rating" in stats_dict:
+        raw_rating = stats_dict["rating"]
+        stats_dict["rating"] = max(0.0, min(5.0, float(raw_rating)))
+        if raw_rating != stats_dict["rating"]:
+            logger.info("Clamped rating %.3f → %.3f for '%s'", raw_rating, stats_dict["rating"], p_name)
+
+    # Clamp avg_kills and avg_adr to >= 0 (DB CHECK constraints)
+    for field in ("avg_kills", "avg_adr"):
+        if field in stats_dict and stats_dict[field] < 0:
+            stats_dict[field] = 0.0
+
     # Use clean stem to align with PlayerTickState and enable AI Coach linking
     clean_demo_name = Path(demo_name).stem if str(demo_name).endswith(".dem") else demo_name
 

@@ -12,6 +12,9 @@ kivy>=2.3.0,<3.0
 # Do NOT change to master.zip — that pulls unstable HEAD and can break the app.
 kivymd @ https://github.com/kivymd/KivyMD/archive/d668d8b2b3d9eb54517892f613ffe34d9914517a.zip
 
+# --- Demo Parsing ---
+demoparser2>=0.40.0,<1.0
+
 # --- Data & ORM ---
 sqlmodel>=0.0.14,<1.0
 sqlalchemy>=2.0.0,<3.0

@@ -25,12 +25,23 @@ from contextlib import contextmanager
 from datetime import datetime, timezone
 from typing import Generator, List, Optional
 
+import sqlalchemy as sa
 from sqlalchemy import event
 from sqlmodel import Field, Session, SQLModel, create_engine, select
 
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 _logger = get_logger("cs2analyzer.match_data_manager")
+
+# ============ Per-Match Schema Versioning ============
+# Bump this when MatchTickState/MatchEventState/MatchMetadata models change.
+# Add migration steps to _MATCH_DB_MIGRATIONS for each version bump.
+MATCH_DB_SCHEMA_VERSION = 1
+
+# Registry: version_from -> list of (table, column, sa_type, default_value)
+# Example for future use:
+#   2: [("match_tick_state", "new_column", sa.Integer(), "0")],
+_MATCH_DB_MIGRATIONS: dict = {}
 
 # ============ Per-Match Telemetry Model ============
 
@@ -189,6 +200,7 @@ class MatchMetadata(SQLModel, table=True):
 
     # Processing info
     parser_version: str = Field(default="v1")
+    schema_version: int = Field(default=1)
     is_pro_match: bool = Field(default=False)
 
     # Timestamps
@@ -268,19 +280,80 @@ class MatchDataManager:
                 MatchMetadata.__table__,
             ]
             SQLModel.metadata.create_all(engine, tables=_MATCH_TABLES)
+
+            # Auto-migrate existing match DBs to current schema version
+            self._ensure_match_schema(engine, match_id)
+
             # Defensive check: verify only expected tables were created
             from sqlalchemy import inspect as sa_inspect
             created = set(sa_inspect(engine).get_table_names())
             expected = {t.name for t in _MATCH_TABLES}
             unexpected = created - expected
             if unexpected:
-                logger.warning(
+                _logger.warning(
                     "R2-03: Unexpected tables in match DB %s: %s",
                     match_id, unexpected,
                 )
 
             self._engines[match_id] = engine
             return engine
+
+    @staticmethod
+    def _ensure_match_schema(engine, match_id: int) -> None:
+        """Auto-migrate a per-match DB to the current schema version.
+
+        Runs once per engine creation (cached by LRU afterwards).
+        Steps:
+        1. Ensure schema_version column exists in match_metadata
+        2. Read current version from metadata row (skip if no row yet)
+        3. Apply incremental migrations up to MATCH_DB_SCHEMA_VERSION
+        """
+        with engine.connect() as conn:
+            # Step 1: ensure schema_version column exists (pre-versioning DBs lack it)
+            cols = conn.execute(sa.text("PRAGMA table_info(match_metadata)"))
+            has_version_col = any(row[1] == "schema_version" for row in cols)
+
+            if not has_version_col:
+                conn.execute(
+                    sa.text(
+                        "ALTER TABLE match_metadata ADD COLUMN schema_version INTEGER DEFAULT 1"
+                    )
+                )
+                conn.commit()
+
+            # Step 2: read current version (no row = new DB, schema is current)
+            row = conn.execute(
+                sa.text("SELECT schema_version FROM match_metadata LIMIT 1")
+            ).first()
+
+            if row is None:
+                return  # new DB, metadata not yet stored
+
+            current_version = row[0] if row[0] is not None else 1
+
+            # Step 3: apply migrations incrementally
+            while current_version < MATCH_DB_SCHEMA_VERSION:
+                migrations = _MATCH_DB_MIGRATIONS.get(current_version, [])
+                for table, column, col_type, default_val in migrations:
+                    # Idempotent: check column existence before adding
+                    cols = conn.execute(sa.text(f"PRAGMA table_info({table})"))
+                    if not any(r[1] == column for r in cols):
+                        type_name = col_type.compile(dialect=engine.dialect)
+                        conn.execute(
+                            sa.text(
+                                f"ALTER TABLE {table} ADD COLUMN "
+                                f"{column} {type_name} DEFAULT {default_val}"
+                            )
+                        )
+                current_version += 1
+                conn.execute(
+                    sa.text("UPDATE match_metadata SET schema_version = :v"),
+                    {"v": current_version},
+                )
+                conn.commit()
+                _logger.info(
+                    "Match %s: migrated to schema v%d", match_id, current_version
+                )
 
     def get_engine(self, match_id: int):
         """Public API to get or create a SQLAlchemy engine for a match database."""

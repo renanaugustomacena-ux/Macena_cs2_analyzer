@@ -144,7 +144,7 @@ class TestNNConfig:
         )
         assert BATCH_SIZE == 32
         assert INPUT_DIM > 0
-        assert OUTPUT_DIM == 4
+        assert OUTPUT_DIM == 10
         assert HIDDEN_DIM == 128
         assert LEARNING_RATE == 0.001
         assert EPOCHS == 50

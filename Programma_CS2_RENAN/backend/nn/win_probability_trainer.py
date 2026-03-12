@@ -10,6 +10,7 @@ logger = get_logger("cs2analyzer.win_probability")
 
 WIN_PROB_EPOCHS = 100
 WIN_PROB_MIN_SAMPLES = 20  # AR-6: Minimum samples for meaningful train/val split
+WIN_PROB_TRAINER_INPUT_DIM = 9
 
 
 class WinProbabilityTrainerNN(nn.Module):
@@ -21,7 +22,7 @@ class WinProbabilityTrainerNN(nn.Module):
     Do NOT cross-load checkpoints between them.
     """
 
-    def __init__(self, input_dim=9):
+    def __init__(self, input_dim=WIN_PROB_TRAINER_INPUT_DIM):
         super().__init__()
         self.model = nn.Sequential(
             nn.Linear(input_dim, 32),
@@ -36,8 +37,9 @@ class WinProbabilityTrainerNN(nn.Module):
         return self.model(x)
 
 
-# Backward-compatibility alias
-WinProbabilityNN = WinProbabilityTrainerNN
+# A-12: Backward-compatibility alias REMOVED. The name WinProbabilityNN is
+# defined in backend/analysis/win_probability.py (12-dim, 64/32 hidden).
+# Import WinProbabilityTrainerNN explicitly for the 9-dim offline trainer.
 
 
 def train_win_prob_model(data_df: pd.DataFrame, model_path: str):

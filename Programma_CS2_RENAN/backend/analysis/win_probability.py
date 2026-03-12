@@ -27,6 +27,8 @@ from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.win_probability")
 
+WIN_PROB_PREDICTOR_INPUT_DIM = 12
+
 
 @dataclass
 class GameState:
@@ -74,7 +76,7 @@ class WinProbabilityNN(nn.Module):
     Target accuracy: 72%+ on test set
     """
 
-    def __init__(self, input_dim: int = 12, hidden_dim: int = 64):
+    def __init__(self, input_dim: int = WIN_PROB_PREDICTOR_INPUT_DIM, hidden_dim: int = 64):
         super().__init__()
 
         self.network = nn.Sequential(
@@ -125,7 +127,20 @@ class WinProbabilityPredictor:
 
         if model_path:
             try:
-                self.model.load_state_dict(torch.load(model_path, weights_only=True))
+                checkpoint = torch.load(model_path, weights_only=True)
+                # A-12: Validate checkpoint dimensions before loading.
+                # Trainer model (9-dim) checkpoints are incompatible with
+                # predictor (12-dim) — they are separate architectures.
+                first_layer_key = "network.0.weight"
+                if first_layer_key in checkpoint:
+                    ckpt_dim = checkpoint[first_layer_key].shape[1]
+                    if ckpt_dim != WIN_PROB_PREDICTOR_INPUT_DIM:
+                        raise ValueError(
+                            f"A-12: Checkpoint input_dim={ckpt_dim} != "
+                            f"predictor input_dim={WIN_PROB_PREDICTOR_INPUT_DIM}. "
+                            f"Cannot load trainer checkpoint into predictor."
+                        )
+                self.model.load_state_dict(checkpoint)
                 self._checkpoint_loaded = True
                 logger.info("Loaded win probability model from %s", model_path)
             except Exception as e:

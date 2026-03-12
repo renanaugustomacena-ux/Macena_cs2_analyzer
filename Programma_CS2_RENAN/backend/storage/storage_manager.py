@@ -8,10 +8,8 @@ from Programma_CS2_RENAN.core.config import BASE_DIR as PROJECT_ROOT
 from Programma_CS2_RENAN.core.config import (
     CURRENT_USER_ID,
     DATA_DIR,
-    DEFAULT_DEMO_PATH,
     MAX_DEMOS_PER_MONTH,
     MAX_TOTAL_DEMOS_PER_USER,
-    PRO_DEMO_PATH,
     get_setting,
 )
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
@@ -30,7 +28,7 @@ class StorageManager:
 
     def __init__(self):
         # Configuration
-        self.local_path = Path(get_setting("DEFAULT_DEMO_PATH", DEFAULT_DEMO_PATH))
+        self.local_path = Path(get_setting("DEFAULT_DEMO_PATH", os.path.expanduser("~")))
         self.quota_gb = float(get_setting("LOCAL_QUOTA_GB", 10.0))
 
         # "The Brain" Storage (Managed Data)
@@ -48,9 +46,7 @@ class StorageManager:
         # Fallback if settings contain invalid E:/D: paths that don't exist
         if not self.local_path.exists():
             logger.warning("Configured path %s not found. Reverting to default.", self.local_path)
-            from Programma_CS2_RENAN.core.config import DEFAULT_DEMO_PATH as DEF_PATH
-
-            self.local_path = Path(DEF_PATH)
+            self.local_path = Path(os.path.expanduser("~"))
 
         # Legacy/Ingestion paths (User Demos)
         self.ingest_dir = self.local_path

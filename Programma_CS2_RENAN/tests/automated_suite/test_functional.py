@@ -1,4 +1,3 @@
-import json
 import os
 import sys
 
@@ -12,23 +11,15 @@ if PROJECT_ROOT not in sys.path:
 from Programma_CS2_RENAN.core.config import load_user_settings, save_user_setting
 
 
-def test_config_persistence():
-    """Functional Test: Verify user settings are saved and loaded correctly."""
+def test_config_persistence(isolated_settings):
+    """Functional Test: Verify user settings are saved and loaded correctly.
+
+    Uses the isolated_settings fixture to redirect file I/O to a temp file,
+    preventing any writes to the real user_settings.json.
+    """
     test_key = "CS2_PLAYER_NAME"
     test_val = "Pytest_User"
 
-    # Save original value to restore after test
-    original_settings = load_user_settings()
-    original_val = original_settings.get(test_key)
-
-    try:
-        save_user_setting(test_key, test_val)
-        settings = load_user_settings()
-        assert settings[test_key] == test_val
-    finally:
-        # Restore original value to avoid test side-effects
-        if original_val is not None:
-            save_user_setting(test_key, original_val)
-        else:
-            # Original was unset; clear the test value to restore clean state
-            save_user_setting(test_key, "")
+    save_user_setting(test_key, test_val)
+    settings = load_user_settings()
+    assert settings[test_key] == test_val
