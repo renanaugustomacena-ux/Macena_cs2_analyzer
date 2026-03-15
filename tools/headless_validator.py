@@ -139,6 +139,7 @@ CRITICAL_DIRS = [
     "Programma_CS2_RENAN/backend/data_sources",
     "Programma_CS2_RENAN/backend/ingestion",
     "Programma_CS2_RENAN/backend/onboarding",
+    "Programma_CS2_RENAN/backend/progress",
     "Programma_CS2_RENAN/core",
     "Programma_CS2_RENAN/observability",
     "Programma_CS2_RENAN/ingestion",
@@ -920,39 +921,35 @@ check("Coaching", "CoachingService import", verify_coaching_service_import)
 print("\n[Phase 7] UI Components (Headless)")
 
 
-def verify_ui_components_safe():
-    # Mock Kivy Window and App to prevent actual window creation
-    import os
-    import sys
-    from unittest.mock import patch
+def verify_qt_app_imports():
+    """Verify the Qt app entry point and MainWindow import cleanly."""
+    from Programma_CS2_RENAN.apps.qt_app import app as qt_app_module
+    from Programma_CS2_RENAN.apps.qt_app.main_window import MainWindow
 
-    # We need to set KIVY_NO_CONSOLELOG to avoid spamming
-    os.environ["KIVY_NO_CONSOLELOG"] = "1"
+    if not hasattr(qt_app_module, "main"):
+        raise AssertionError("qt_app.app missing 'main' function")
+    if not callable(qt_app_module.main):
+        raise AssertionError("qt_app.app.main is not callable")
 
-    with patch("kivy.core.window.Window") as MockWindow:
-        try:
-            old_argv = sys.argv
-            sys.argv = [sys.argv[0]]
+    # Verify MainWindow has expected navigation structure
+    if not hasattr(MainWindow, "__init__"):
+        raise AssertionError("MainWindow missing __init__")
 
-            # Try importing main app class
-            from Programma_CS2_RENAN.main import CS2AnalyzerApp
-
-            # Verify key methods exist (build is required by MDApp)
-            if not hasattr(CS2AnalyzerApp, "build"):
-                raise AssertionError("CS2AnalyzerApp missing 'build' method")
-
-            # Check KV file existence
-            kv_path = (
-                Path(PROJECT_ROOT) / "Programma_CS2_RENAN" / "apps" / "desktop_app" / "layout.kv"
-            )
-            if not kv_path.exists():
-                raise AssertionError("layout.kv missing")
-
-        finally:
-            sys.argv = old_argv
+    # Verify all screen modules import cleanly
+    screen_modules = [
+        "home_screen", "coach_screen", "match_history_screen",
+        "performance_screen", "tactical_viewer_screen", "settings_screen",
+        "help_screen", "steam_config_screen", "user_profile_screen",
+        "profile_screen", "wizard_screen", "match_detail_screen",
+        "faceit_config_screen",
+    ]
+    import importlib
+    for mod_name in screen_modules:
+        full = f"Programma_CS2_RENAN.apps.qt_app.screens.{mod_name}"
+        importlib.import_module(full)
 
 
-check("UI", "Main App Class Import (Mocked)", verify_ui_components_safe)
+check("UI", "Qt App + MainWindow + All Screens Import", verify_qt_app_imports)
 
 
 # ── Phase 8: Cross-Platform Checks ──────────────────────────────────────────
@@ -1687,13 +1684,27 @@ def verify_settings_json():
     _verify_json_file("settings.json", "Programma_CS2_RENAN/settings.json")
 
 
-def verify_layout_kv():
-    kv = Path(PROJECT_ROOT) / "Programma_CS2_RENAN" / "apps" / "desktop_app" / "layout.kv"
-    if not kv.exists():
-        raise AssertionError("layout.kv missing")
-    content = kv.read_text(encoding="utf-8")
-    if len(content) < 100:
-        raise AssertionError(f"layout.kv suspiciously small: {len(content)} chars")
+def verify_qt_app_structure():
+    """Verify Qt app directory structure: app.py, main_window.py, themes, screens."""
+    qt_root = Path(PROJECT_ROOT) / "Programma_CS2_RENAN" / "apps" / "qt_app"
+    app_py = qt_root / "app.py"
+    if not app_py.exists():
+        raise AssertionError("apps/qt_app/app.py missing")
+    main_win = qt_root / "main_window.py"
+    if not main_win.exists():
+        raise AssertionError("apps/qt_app/main_window.py missing")
+    themes_dir = qt_root / "themes"
+    if not themes_dir.is_dir():
+        raise AssertionError("apps/qt_app/themes/ directory missing")
+    qss_files = list(themes_dir.glob("*.qss"))
+    if not qss_files:
+        raise AssertionError("No .qss theme files found in apps/qt_app/themes/")
+    screens_dir = qt_root / "screens"
+    if not screens_dir.is_dir():
+        raise AssertionError("apps/qt_app/screens/ directory missing")
+    screen_files = [f for f in screens_dir.glob("*.py") if f.name != "__init__.py"]
+    if len(screen_files) < 5:
+        raise AssertionError(f"Only {len(screen_files)} screen files, expected >= 5")
 
 
 def verify_alembic_env():
@@ -1711,7 +1722,7 @@ warn("Structure", "__init__.py completeness", verify_init_py_in_packages)
 check("Structure", "coaching_knowledge_base.json valid", verify_coaching_knowledge_json)
 check("Structure", "integrity_manifest.json valid", verify_integrity_manifest_json)
 check("Structure", "settings.json valid", verify_settings_json)
-check("Structure", "layout.kv exists + non-trivial", verify_layout_kv)
+check("Structure", "Qt app structure (app.py, main_window, themes, screens)", verify_qt_app_structure)
 check("Structure", "alembic/env.py imports db_models", verify_alembic_env)
 
 
@@ -2144,15 +2155,6 @@ check("MLCtrl", "throttle factor", verify_throttle_factor)
 check("MLCtrl", "TrainingStopRequested is Exception subclass", verify_training_stop_requested_type)
 
 
-# ── Phase 19: Circuit Breaker & HLTV Resilience ─────────────────────────────
-
-print("\n[Phase 19] Circuit Breaker & HLTV Resilience")
-
-
-# CircuitBreaker tests removed — _CircuitBreaker was deleted in commit 4c71484
-# (HLTV pipeline cleanup: hltv_api_service.py removed).
-
-
 # ── Phase 20: Shared Utilities & Missing Module Imports ──────────────────────
 
 print("\n[Phase 20] Shared Utilities & New Imports")
@@ -2432,7 +2434,7 @@ def verify_requirements_core_deps():
     if not req_path.exists():
         raise AssertionError("requirements.txt not found")
     content = req_path.read_text(encoding="utf-8").lower()
-    critical = ["torch", "sqlmodel", "kivy", "numpy"]
+    critical = ["torch", "sqlmodel", "pyside6", "numpy"]
     missing = [pkg for pkg in critical if pkg not in content]
     if missing:
         raise AssertionError(f"requirements.txt missing critical deps: {missing}")

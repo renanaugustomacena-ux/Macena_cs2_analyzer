@@ -12,6 +12,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from Programma_CS2_RENAN.apps.qt_app.core.i18n_bridge import i18n
 from Programma_CS2_RENAN.apps.qt_app.core.theme_engine import (
     COLOR_GREEN,
     COLOR_RED,
@@ -45,10 +46,10 @@ class PerformanceScreen(QWidget):
         layout.setSpacing(8)
 
         # Title
-        title = QLabel("Your Stats")
-        title.setObjectName("section_title")
-        title.setFont(QFont("Roboto", 20, QFont.Bold))
-        layout.addWidget(title)
+        self._title_label = QLabel(i18n.get_text("advanced_analytics"))
+        self._title_label.setObjectName("section_title")
+        self._title_label.setFont(QFont("Roboto", 20, QFont.Bold))
+        layout.addWidget(self._title_label)
 
         # Status
         self._status = QLabel("")
@@ -71,6 +72,10 @@ class PerformanceScreen(QWidget):
     def on_enter(self):
         self._show_status("Loading performance data...")
         self._vm.load_performance()
+
+    def retranslate(self):
+        """Update all translatable text when language changes."""
+        self._title_label.setText(i18n.get_text("advanced_analytics"))
 
     def _on_loading(self, loading: bool):
         if loading:

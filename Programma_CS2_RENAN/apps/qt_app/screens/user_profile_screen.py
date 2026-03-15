@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from Programma_CS2_RENAN.apps.qt_app.core.i18n_bridge import i18n
 from Programma_CS2_RENAN.apps.qt_app.viewmodels.user_profile_vm import (
     UserProfileViewModel,
 )
@@ -49,6 +50,13 @@ class UserProfileScreen(QWidget):
         self._status.setVisible(False)
         self._vm.load_profile()
 
+    def retranslate(self):
+        """Update all translatable text when language changes."""
+        self._title_label.setText(i18n.get_text("profile"))
+        self._bio_title.setText(i18n.get_text("bio"))
+        self._edit_btn.setText(i18n.get_text("dialog_edit_profile"))
+        self._steam_sync_btn.setText(i18n.get_text("sync_steam"))
+
     # ── UI Construction ──
 
     def _build_ui(self):
@@ -56,10 +64,10 @@ class UserProfileScreen(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(8)
 
-        title = QLabel("Player Profile")
-        title.setObjectName("section_title")
-        title.setFont(QFont("Roboto", 20, QFont.Bold))
-        layout.addWidget(title)
+        self._title_label = QLabel(i18n.get_text("profile"))
+        self._title_label.setObjectName("section_title")
+        self._title_label.setFont(QFont("Roboto", 20, QFont.Bold))
+        layout.addWidget(self._title_label)
 
         self._status = QLabel("")
         self._status.setAlignment(Qt.AlignCenter)
@@ -102,10 +110,10 @@ class UserProfileScreen(QWidget):
         bio_card.setObjectName("dashboard_card")
         bio_layout = QVBoxLayout(bio_card)
         bio_layout.setSpacing(4)
-        bio_title = QLabel("Bio")
-        bio_title.setFont(QFont("Roboto", 14, QFont.Bold))
-        bio_title.setStyleSheet("color: #dcdcdc;")
-        bio_layout.addWidget(bio_title)
+        self._bio_title = QLabel(i18n.get_text("bio"))
+        self._bio_title.setFont(QFont("Roboto", 14, QFont.Bold))
+        self._bio_title.setStyleSheet("color: #dcdcdc;")
+        bio_layout.addWidget(self._bio_title)
         self._bio_label = QLabel("No description yet.")
         self._bio_label.setWordWrap(True)
         self._bio_label.setStyleSheet("color: #a0a0b0; font-size: 13px;")
@@ -115,15 +123,15 @@ class UserProfileScreen(QWidget):
         # Buttons
         btn_row = QHBoxLayout()
         btn_row.setSpacing(12)
-        edit_btn = QPushButton("Edit Profile")
-        edit_btn.setCursor(Qt.PointingHandCursor)
-        edit_btn.clicked.connect(self._open_edit_dialog)
-        btn_row.addWidget(edit_btn)
+        self._edit_btn = QPushButton(i18n.get_text("dialog_edit_profile"))
+        self._edit_btn.setCursor(Qt.PointingHandCursor)
+        self._edit_btn.clicked.connect(self._open_edit_dialog)
+        btn_row.addWidget(self._edit_btn)
 
-        steam_btn = QPushButton("Sync with Steam")
-        steam_btn.setEnabled(False)
-        steam_btn.setToolTip("Configure Steam ID first (Steam Config screen)")
-        btn_row.addWidget(steam_btn)
+        self._steam_sync_btn = QPushButton(i18n.get_text("sync_steam"))
+        self._steam_sync_btn.setEnabled(False)
+        self._steam_sync_btn.setToolTip(i18n.get_text("sync_steam_tooltip"))
+        btn_row.addWidget(self._steam_sync_btn)
 
         btn_row.addStretch()
         self._content_layout.addLayout(btn_row)

@@ -23,6 +23,7 @@ TOOLS_DIR = project_root / "tools"
 INNER_TOOLS_DIR = SOURCE_DIR / "tools"
 ENTRY_POINTS = {
     SOURCE_DIR / "main.py",
+    SOURCE_DIR / "apps" / "qt_app" / "app.py",
     project_root / "goliath.py",
     project_root / "console.py",
 }

@@ -2,7 +2,7 @@
 
 > **[English](README.md)** | **[Italiano](README_IT.md)** | **[Português](README_PT.md)**
 
-Demo ingestion infrastructure for professional and user CS2 demos with HLTV scraping, Steam integration, and round-level statistical enrichment.
+Demo ingestion infrastructure for professional and user CS2 demos with Steam integration and round-level statistical enrichment.
 
 ## Core Components
 
@@ -19,11 +19,12 @@ Demo ingestion infrastructure for professional and user CS2 demos with HLTV scra
 - Registry parsing (Windows) and filesystem scanning
 - Demo folder auto-detection
 
-**`hltv_orchestrator.py`** — HLTV data synchronization orchestrator
-- Coordinates metadata scraping for professional matches
+**`hltv_orchestrator.py`** — HLTV pro player statistics synchronization orchestrator
+- Coordinates scraping of professional player statistics from hltv.org (Rating 2.0, K/D, ADR, etc.)
 - Rate limiting enforcement
 - Cache management
 - Browser automation lifecycle
+- **NOTE:** This does NOT handle demo files or demo metadata — only pro player stats
 
 **`downloader.py`** — Demo file downloader
 - HTTP/HTTPS download with retry logic
@@ -46,7 +47,7 @@ Demo ingestion infrastructure for professional and user CS2 demos with HLTV scra
 - Persists to RoundStats + PlayerMatchStats tables
 
 **`pro_ingest.py`** — Professional demo ingestion pipeline
-- Professional demo parsing with HLTV metadata integration
+- Professional demo parsing with round-level statistical enrichment
 - Round-level statistical enrichment
 - Knowledge record generation for RAG system
 - Pro baseline statistical updates

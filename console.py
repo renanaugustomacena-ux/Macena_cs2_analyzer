@@ -12,14 +12,20 @@ Usage:
 If it's not in this console, the project doesn't need it.
 """
 
+import os
+import sys
+
+# --- Venv Guard ---
+if sys.prefix == sys.base_prefix and not os.environ.get("CI"):
+    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
+    sys.exit(2)
+
 import argparse
 import logging
-import os
 import shutil
 import signal
 import sqlite3
 import subprocess
-import sys
 import threading
 import time
 from datetime import datetime
@@ -43,9 +49,6 @@ else:
 PROJECT_ROOT = Path(__file__).parent.absolute()
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
-
-os.environ["KIVY_NO_ARGS"] = "1"
-os.environ["KIVY_NO_CONSOLELOG"] = "1"
 
 # --- Windows Encoding Fix ---
 if sys.platform == "win32":
@@ -328,9 +331,9 @@ def _cmd_ml_throttle(args):
 def _cmd_ml_status(args):
     sc = _get_sys_console()
     ml = sc.ml_controller.get_status()
-    from Programma_CS2_RENAN.backend.storage.state_manager import state_manager
+    from Programma_CS2_RENAN.backend.storage.state_manager import get_state_manager
 
-    teacher = state_manager.get_status("teacher")
+    teacher = get_state_manager().get_status("teacher")
     lines = [
         "[bold]ML Pipeline Status[/bold]",
         f"  Running:    {'[success]Yes[/success]' if ml['is_running'] else '[dim]No[/dim]'}",
@@ -1008,7 +1011,7 @@ registry.register("build", "manifest", _cmd_build_manifest, "Generate integrity 
 
 # Test
 registry.register("test", "all", _cmd_test_all, "Run full pytest suite")
-registry.register("test", "headless", _cmd_test_headless, "Run headless validator (79/79 gate)")
+registry.register("test", "headless", _cmd_test_headless, "Run headless validator")
 registry.register("test", "backend", _cmd_test_backend, "Run backend validator")
 registry.register("test", "ui", _cmd_test_ui, "Run UI diagnostic")
 registry.register("test", "hospital", _cmd_test_hospital, "Run Goliath Hospital [dept]")

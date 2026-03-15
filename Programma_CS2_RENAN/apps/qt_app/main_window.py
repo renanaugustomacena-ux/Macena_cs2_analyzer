@@ -41,6 +41,7 @@ class _BackgroundWidget(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._pixmap: QPixmap | None = None
+        self._scaled_cache: QPixmap | None = None
         self._opacity: float = 0.25
 
     def set_image(self, path: str):
@@ -48,19 +49,26 @@ class _BackgroundWidget(QWidget):
             self._pixmap = QPixmap(path)
         else:
             self._pixmap = None
+        self._scaled_cache = None
         self.update()
+
+    def resizeEvent(self, event):
+        self._scaled_cache = None  # Invalidate cache on resize
+        super().resizeEvent(event)
 
     def paintEvent(self, event):
         if self._pixmap and not self._pixmap.isNull():
+            if self._scaled_cache is None or self._scaled_cache.size() != self.size():
+                scaled = self._pixmap.scaled(
+                    self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
+                )
+                # Center-crop the scaled image
+                x = (scaled.width() - self.width()) // 2
+                y = (scaled.height() - self.height()) // 2
+                self._scaled_cache = scaled.copy(x, y, self.width(), self.height())
             painter = QPainter(self)
             painter.setOpacity(self._opacity)
-            scaled = self._pixmap.scaled(
-                self.size(), Qt.KeepAspectRatioByExpanding, Qt.SmoothTransformation
-            )
-            # Center-crop the scaled image
-            x = (scaled.width() - self.width()) // 2
-            y = (scaled.height() - self.height()) // 2
-            painter.drawPixmap(0, 0, scaled, x, y, self.width(), self.height())
+            painter.drawPixmap(0, 0, self._scaled_cache)
             painter.end()
         super().paintEvent(event)
 
@@ -186,9 +194,14 @@ class MainWindow(QMainWindow):
             self.switch_screen(btn.screen_key)
 
     def _refresh_nav_labels(self, _lang: str):
-        """Update button labels when language changes."""
+        """Update button labels and screen content when language changes."""
         for key, icon, i18n_key in NAV_ITEMS:
             if key in self._nav_buttons:
                 self._nav_buttons[key].setText(
                     f"  {icon}  {i18n.get_text(i18n_key)}"
                 )
+        # Notify all screens
+        for i in range(self._stack.count()):
+            widget = self._stack.widget(i)
+            if hasattr(widget, "retranslate"):
+                widget.retranslate()

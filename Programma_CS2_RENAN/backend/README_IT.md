@@ -15,7 +15,7 @@ backend/
 ├── analysis/           Motori di teoria dei giochi (11 moduli)
 ├── coaching/           Pipeline di coaching (COPER, Ibrido, RAG, NN)
 ├── control/            Logica di controllo addestramento
-├── data_sources/       Integrazione dati esterni (Demo, HLTV, Steam, Faceit)
+├── data_sources/       Integrazione dati esterni (Parser demo, statistiche pro HLTV, Steam, Faceit)
 ├── ingestion/          Helper di ingestione backend
 ├── knowledge/          Base di conoscenza RAG + banca esperienze COPER
 ├── knowledge_base/     Archiviazione grafo di conoscenza

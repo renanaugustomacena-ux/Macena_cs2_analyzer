@@ -79,14 +79,24 @@ class IndustrialSanitizer:
         self.app_dir = self.project_root / "Programma_CS2_RENAN"
         self.targets = [
             {
-                "path": self.project_root / "user_settings.json",
-                "action": "DELETE",
-                "desc": "Local user preferences and API keys.",
-            },
-            {
                 "path": self.app_dir / "backend" / "storage" / "database.db",
                 "action": "DELETE",
-                "desc": "Main local database containing player stats.",
+                "desc": "Main local database (user profile, coaching history, stats).",
+            },
+            {
+                "path": self.app_dir / "backend" / "storage" / "hltv_metadata.db",
+                "action": "DELETE",
+                "desc": "HLTV pro player statistics database.",
+            },
+            {
+                "path": self.app_dir / "backend" / "storage" / "match_data",
+                "action": "CLEAR",
+                "desc": "Per-match SQLite databases from demo ingestion.",
+            },
+            {
+                "path": self.project_root / "models",
+                "action": "CLEAR",
+                "desc": "ML model checkpoints (jepa_brain.pt, etc.).",
             },
             {
                 "path": self.project_root / "logs",
@@ -94,7 +104,7 @@ class IndustrialSanitizer:
                 "desc": "Wipes all execution and debug logs.",
             },
             {
-                "path": self.project_root / "Programma_CS2_RENAN" / "hltv_sync.pid",
+                "path": self.app_dir / "hltv_sync.pid",
                 "action": "DELETE",
                 "desc": "Stale process ID file.",
             },

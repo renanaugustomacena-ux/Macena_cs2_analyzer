@@ -21,7 +21,7 @@ from Programma_CS2_RENAN.core.playback_engine import InterpolatedPlayerState
 class _PlayerItem(QFrame):
     """Single player row in the sidebar."""
 
-    clicked = Signal(int)
+    clicked = Signal(object)  # Steam IDs exceed int32
 
     def __init__(self, player_id: int, parent=None):
         super().__init__(parent)
@@ -80,7 +80,7 @@ class _PlayerItem(QFrame):
         if player.is_alive:
             info += f" | HP: {player.hp}"
         self._stats_label.setText(info)
-        self._weapon_label.setText(player.weapon)
+        self._weapon_label.setText(player.weapon or "")
 
         if is_selected:
             self.setStyleSheet(
@@ -177,7 +177,7 @@ class _LivePlayerCard(QFrame):
 class PlayerSidebar(QWidget):
     """Team sidebar with player list and detail card."""
 
-    player_clicked = Signal(int)
+    player_clicked = Signal(object)  # Steam IDs exceed int32
 
     def __init__(self, team_name: str = "TEAM", team_color: str = "#dcdcdc", parent=None):
         super().__init__(parent)

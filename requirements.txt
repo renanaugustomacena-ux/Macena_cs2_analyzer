@@ -6,11 +6,8 @@
 #         pdfplumber, pypdf, shap — zero imports found in codebase)
 # =============================================================================
 
-# --- UI Framework ---
-kivy>=2.3.0,<3.0
-# P5-01: Pinned to commit d668d8b (2025-11-11) — installed as 2.0.1.dev0.
-# Do NOT change to master.zip — that pulls unstable HEAD and can break the app.
-kivymd @ https://github.com/kivymd/KivyMD/archive/d668d8b2b3d9eb54517892f613ffe34d9914517a.zip
+# --- UI Framework (Qt) ---
+PySide6>=6.6.0,<7.0
 
 # --- Demo Parsing ---
 demoparser2>=0.40.0,<1.0

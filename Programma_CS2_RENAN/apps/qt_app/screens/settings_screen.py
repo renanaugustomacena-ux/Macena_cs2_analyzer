@@ -1,6 +1,6 @@
 """Settings screen — theme, paths, appearance, ingestion, font, language."""
 
-from PySide6.QtCore import Qt
+from PySide6.QtCore import QThreadPool, Qt
 from PySide6.QtGui import QFont
 from PySide6.QtWidgets import (
     QApplication,
@@ -14,6 +14,8 @@ from PySide6.QtWidgets import (
     QVBoxLayout,
     QWidget,
 )
+
+from Programma_CS2_RENAN.apps.qt_app.core.worker import Worker
 
 from Programma_CS2_RENAN.apps.qt_app.core.i18n_bridge import i18n
 from Programma_CS2_RENAN.apps.qt_app.core.theme_engine import ThemeEngine
@@ -34,6 +36,7 @@ class SettingsScreen(QWidget):
 
         # Toggle button group references (key → QPushButton)
         self._theme_buttons: dict = {}
+        self._wallpaper_buttons: dict = {}
         self._font_size_buttons: dict = {}
         self._font_type_buttons: dict = {}
         self._language_buttons: dict = {}
@@ -43,6 +46,12 @@ class SettingsScreen(QWidget):
         self._default_path_label: QLabel | None = None
         self._pro_path_label: QLabel | None = None
         self._interval_input: QLineEdit | None = None
+
+        # Ingestion state
+        self._ingestion_worker = None
+        self._start_btn: QPushButton | None = None
+        self._stop_btn: QPushButton | None = None
+        self._ingest_status_label: QLabel | None = None
 
         self._build_ui()
 
@@ -55,6 +64,19 @@ class SettingsScreen(QWidget):
         self._interval_input.setText(str(get_setting("INGEST_INTERVAL_MINUTES", 30)))
         self._refresh_all_toggles()
 
+    def retranslate(self):
+        """Update all translatable text when language changes."""
+        self._title_label.setText(i18n.get_text("settings"))
+        self._theme_section_label.setText(i18n.get_text("visual_theme"))
+        self._wallpaper_section_label.setText(i18n.get_text("wallpaper"))
+        self._paths_section_label.setText(i18n.get_text("analysis_paths"))
+        self._appearance_section_label.setText(i18n.get_text("appearance"))
+        self._font_size_label.setText(i18n.get_text("font_size") + ":")
+        self._ingestion_section_label.setText(i18n.get_text("data_ingestion"))
+        self._ingest_mode_label.setText(i18n.get_text("ingestion_mode") + ":")
+        self._font_type_section_label.setText(i18n.get_text("font_type"))
+        self._language_section_label.setText(i18n.get_text("language"))
+
     # ── UI Construction ──
 
     def _build_ui(self):
@@ -62,10 +84,10 @@ class SettingsScreen(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(8)
 
-        title = QLabel("Settings")
-        title.setObjectName("section_title")
-        title.setFont(QFont("Roboto", 20, QFont.Bold))
-        layout.addWidget(title)
+        self._title_label = QLabel(i18n.get_text("settings"))
+        self._title_label.setObjectName("section_title")
+        self._title_label.setFont(QFont("Roboto", 20, QFont.Bold))
+        layout.addWidget(self._title_label)
 
         scroll = QScrollArea()
         scroll.setWidgetResizable(True)
@@ -75,6 +97,7 @@ class SettingsScreen(QWidget):
         self._content_layout.setSpacing(16)
 
         self._build_theme_section()
+        self._build_wallpaper_section()
         self._build_paths_section()
         self._build_font_size_section()
         self._build_ingestion_section()
@@ -85,25 +108,25 @@ class SettingsScreen(QWidget):
         scroll.setWidget(self._content)
         layout.addWidget(scroll, 1)
 
-    def _section(self, title: str) -> QFrame:
+    def _section(self, i18n_key: str) -> tuple[QFrame, QLabel]:
         """Create a titled dashboard card and add it to content layout."""
         card = QFrame()
         card.setObjectName("dashboard_card")
         card_layout = QVBoxLayout(card)
         card_layout.setSpacing(8)
 
-        lbl = QLabel(title)
+        lbl = QLabel(i18n.get_text(i18n_key))
         lbl.setFont(QFont("Roboto", 14, QFont.Bold))
         lbl.setStyleSheet("color: #dcdcdc;")
         card_layout.addWidget(lbl)
 
         self._content_layout.addWidget(card)
-        return card
+        return card, lbl
 
     # ── Section Builders ──
 
     def _build_theme_section(self):
-        card = self._section("Theme")
+        card, self._theme_section_label = self._section("visual_theme")
         row = self._make_toggle_group(
             {"CS2": "CS2", "CSGO": "CS:GO", "CS1.6": "CS 1.6"},
             self._theme_buttons,
@@ -111,8 +134,78 @@ class SettingsScreen(QWidget):
         )
         card.layout().addLayout(row)
 
+    def _build_wallpaper_section(self):
+        card, self._wallpaper_section_label = self._section("wallpaper")
+        self._wallpaper_card = card
+        self._wallpaper_row = QHBoxLayout()
+        self._wallpaper_row.setSpacing(8)
+        self._rebuild_wallpaper_buttons()
+        card.layout().addLayout(self._wallpaper_row)
+
+    def _rebuild_wallpaper_buttons(self):
+        """Rebuild wallpaper toggle buttons for the current theme."""
+        # Clear existing buttons
+        self._wallpaper_buttons.clear()
+        while self._wallpaper_row.count() > 0:
+            item = self._wallpaper_row.takeAt(0)
+            w = item.widget()
+            if w:
+                w.deleteLater()
+
+        wallpapers = self._theme_engine.get_available_wallpapers()
+        current_path = self._theme_engine.wallpaper_path
+        for filename in wallpapers:
+            # Shorten label: "16_9_wallpaper_cs2.jpg" → "16:9 A"
+            short = filename.rsplit(".", 1)[0]
+            if "16_9" in short:
+                prefix = "16:9"
+            elif "vertical" in short:
+                prefix = "Vert"
+            elif "mini" in short:
+                prefix = "Mini"
+            else:
+                prefix = short[:8]
+            # Extract variant letter (last char before extension if uppercase)
+            variant = ""
+            base = short.rsplit(".", 1)[0]
+            if base and base[-1].isalpha() and base[-2] == "_":
+                variant = f" {base[-1]}"
+            label = f"{prefix}{variant}"
+
+            btn = QPushButton(label)
+            btn.setCursor(Qt.PointingHandCursor)
+            btn.setFixedHeight(36)
+            btn.setMinimumWidth(70)
+            btn.clicked.connect(lambda _c, f=filename: self._on_wallpaper_selected(f))
+            self._wallpaper_buttons[filename] = btn
+            self._wallpaper_row.addWidget(btn)
+
+        self._wallpaper_row.addStretch()
+        self._update_wallpaper_toggles(current_path)
+
+    def _update_wallpaper_toggles(self, current_path: str):
+        """Highlight the active wallpaper button."""
+        import os
+        accent = self._theme_engine.get_color("accent_primary").name()
+        for filename, btn in self._wallpaper_buttons.items():
+            is_active = current_path.endswith(os.sep + filename) or current_path.endswith("/" + filename)
+            if is_active:
+                btn.setStyleSheet(
+                    f"QPushButton {{ background-color: {accent}; color: white; "
+                    f"border: none; border-radius: 8px; padding: 8px 12px; font-weight: bold; }}"
+                    f"QPushButton:hover {{ background-color: {accent}; }}"
+                )
+            else:
+                btn.setStyleSheet(
+                    "QPushButton { background-color: transparent; color: #a0a0b0; "
+                    "border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; "
+                    "padding: 8px 12px; }"
+                    "QPushButton:hover { background-color: rgba(255,255,255,0.05); "
+                    "color: #dcdcdc; }"
+                )
+
     def _build_paths_section(self):
-        card = self._section("Analysis Paths")
+        card, self._paths_section_label = self._section("analysis_paths")
 
         # Demo path
         demo_row = QHBoxLayout()
@@ -149,10 +242,10 @@ class SettingsScreen(QWidget):
         card.layout().addLayout(pro_row)
 
     def _build_font_size_section(self):
-        card = self._section("Appearance")
-        lbl = QLabel("Font Size:")
-        lbl.setStyleSheet("color: #a0a0b0;")
-        card.layout().addWidget(lbl)
+        card, self._appearance_section_label = self._section("appearance")
+        self._font_size_label = QLabel(i18n.get_text("font_size") + ":")
+        self._font_size_label.setStyleSheet("color: #a0a0b0;")
+        card.layout().addWidget(self._font_size_label)
         row = self._make_toggle_group(
             {"Small": "Small", "Medium": "Medium", "Large": "Large"},
             self._font_size_buttons,
@@ -161,12 +254,12 @@ class SettingsScreen(QWidget):
         card.layout().addLayout(row)
 
     def _build_ingestion_section(self):
-        card = self._section("Data Ingestion")
+        card, self._ingestion_section_label = self._section("data_ingestion")
 
         # Mode toggle
-        mode_lbl = QLabel("Ingestion Mode:")
-        mode_lbl.setStyleSheet("color: #a0a0b0;")
-        card.layout().addWidget(mode_lbl)
+        self._ingest_mode_label = QLabel(i18n.get_text("ingestion_mode") + ":")
+        self._ingest_mode_label.setStyleSheet("color: #a0a0b0;")
+        card.layout().addWidget(self._ingest_mode_label)
         mode_row = self._make_toggle_group(
             {"manual": "Manual", "auto": "Auto"},
             self._ingest_mode_buttons,
@@ -191,22 +284,22 @@ class SettingsScreen(QWidget):
         interval_row.addStretch()
         card.layout().addLayout(interval_row)
 
-        # Start/Stop — disabled until session engine exists (Phase 2)
+        # Start/Stop ingestion
         action_row = QHBoxLayout()
         action_row.setSpacing(12)
-        start_btn = QPushButton("Start Ingestion")
-        start_btn.setEnabled(False)
-        start_btn.setToolTip("Requires session engine (Phase 2)")
-        action_row.addWidget(start_btn)
-        stop_btn = QPushButton("Stop Ingestion")
-        stop_btn.setEnabled(False)
-        stop_btn.setToolTip("Requires session engine (Phase 2)")
-        action_row.addWidget(stop_btn)
+        self._start_btn = QPushButton("Start Ingestion")
+        self._start_btn.setCursor(Qt.PointingHandCursor)
+        self._start_btn.setToolTip("Scan demo folders and ingest new demos")
+        self._start_btn.clicked.connect(self._on_start_ingestion)
+        action_row.addWidget(self._start_btn)
+        self._ingest_status_label = QLabel("")
+        self._ingest_status_label.setStyleSheet("color: #a0a0b0; font-size: 13px;")
+        action_row.addWidget(self._ingest_status_label)
         action_row.addStretch()
         card.layout().addLayout(action_row)
 
     def _build_font_type_section(self):
-        card = self._section("Font Type")
+        card, self._font_type_section_label = self._section("font_type")
         row1 = self._make_toggle_group(
             {"Roboto": "Roboto", "Arial": "Arial", "JetBrains Mono": "JetBrains"},
             self._font_type_buttons,
@@ -221,7 +314,7 @@ class SettingsScreen(QWidget):
         card.layout().addLayout(row2)
 
     def _build_language_section(self):
-        card = self._section("Language")
+        card, self._language_section_label = self._section("language")
         row = self._make_toggle_group(
             {"en": "English", "it": "Italiano", "pt": "Portugues"},
             self._language_buttons,
@@ -280,6 +373,8 @@ class SettingsScreen(QWidget):
         self._theme_engine.apply_theme(name, QApplication.instance())
         save_user_setting("ACTIVE_THEME", name)
         self._refresh_all_toggles()
+        # Rebuild wallpaper buttons for new theme
+        self._rebuild_wallpaper_buttons()
         # Update wallpaper in MainWindow
         win = self.window()
         if hasattr(win, "set_wallpaper"):
@@ -336,3 +431,57 @@ class SettingsScreen(QWidget):
         i18n.set_language(lang_code)
         self._update_toggle_group(self._language_buttons, lang_code)
         logger.info("Language changed to %s", lang_code)
+
+    def _on_wallpaper_selected(self, filename: str):
+        self._theme_engine.set_wallpaper(filename)
+        self._update_wallpaper_toggles(self._theme_engine.wallpaper_path)
+        win = self.window()
+        if hasattr(win, "set_wallpaper"):
+            win.set_wallpaper(self._theme_engine.wallpaper_path)
+        logger.info("Wallpaper changed to %s", filename)
+
+    def _on_start_ingestion(self):
+        if self._ingestion_worker is not None:
+            return  # Already running
+        pro_path = get_setting("PRO_DEMO_PATH", "")
+        demo_path = get_setting("DEFAULT_DEMO_PATH", "")
+        if not pro_path and not demo_path:
+            self._ingest_status_label.setText("Set a demo path first")
+            self._ingest_status_label.setStyleSheet("color: #ff5555; font-size: 13px;")
+            return
+
+        self._start_btn.setEnabled(False)
+        self._start_btn.setText("Ingesting...")
+        self._ingest_status_label.setText("Scanning for demos...")
+        self._ingest_status_label.setStyleSheet("color: #ffcc00; font-size: 13px;")
+
+        def _run_ingestion():
+            from Programma_CS2_RENAN.run_ingestion import process_new_demos
+            results = []
+            if pro_path:
+                results.append(("pro", process_new_demos(is_pro=True)))
+            if demo_path:
+                results.append(("user", process_new_demos(is_pro=False)))
+            return results
+
+        worker = Worker(_run_ingestion)
+        worker.signals.result.connect(self._on_ingestion_done)
+        worker.signals.error.connect(self._on_ingestion_error)
+        self._ingestion_worker = worker
+        QThreadPool.globalInstance().start(worker)
+
+    def _on_ingestion_done(self, results):
+        self._ingestion_worker = None
+        self._start_btn.setEnabled(True)
+        self._start_btn.setText("Start Ingestion")
+        self._ingest_status_label.setText("Ingestion complete")
+        self._ingest_status_label.setStyleSheet("color: #4caf50; font-size: 13px;")
+        logger.info("Ingestion completed: %s", results)
+
+    def _on_ingestion_error(self, error):
+        self._ingestion_worker = None
+        self._start_btn.setEnabled(True)
+        self._start_btn.setText("Start Ingestion")
+        self._ingest_status_label.setText(f"Error: {error}")
+        self._ingest_status_label.setStyleSheet("color: #ff5555; font-size: 13px;")
+        logger.error("Ingestion failed: %s", error)

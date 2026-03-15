@@ -937,6 +937,8 @@ def _extract_and_store_events(demo_path, match_id, match_manager, df_ticks):
 def _save_sequential_data(db_manager, demo_path, target_player, start_tick=0):
     import time as _time
 
+    from demoparser2 import DemoParser as _DemoParser
+
     from Programma_CS2_RENAN.backend.data_sources.demo_parser import parse_sequential_ticks
     from Programma_CS2_RENAN.backend.processing.tick_enrichment import enrich_tick_data
 
@@ -968,10 +970,16 @@ def _save_sequential_data(db_manager, demo_path, target_player, start_tick=0):
     get_state_manager().update_parsing_progress(25.0)
     t_enrich = _time.monotonic()
 
-    # Resolve map_name from tick data (demoparser2 may include it)
+    # Resolve map_name from demo header (demoparser2 exposes it via parse_header())
     _meta_map_name = "de_unknown"
-    if "map_name" in df_ticks.columns and not df_ticks["map_name"].isna().all():
-        _meta_map_name = str(df_ticks["map_name"].dropna().iloc[0])
+    try:
+        _header = _DemoParser(str(demo_path)).parse_header()
+        _meta_map_name = _header.get("map_name", "de_unknown")
+        if not _meta_map_name or _meta_map_name == "unknown":
+            _meta_map_name = "de_unknown"
+        logger.info("Map name from demo header: %s", _meta_map_name)
+    except Exception as e:
+        logger.warning("Failed to extract map_name from demo header: %s", e)
 
     # Enrich with cross-player features: round_number, time_in_round,
     # bomb_planted, teammates_alive, enemies_alive, team_economy, enemies_visible

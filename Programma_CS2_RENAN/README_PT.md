@@ -24,14 +24,14 @@ Programma_CS2_RENAN/
 ├── backend/                Camada de logica de negocios
 │   ├── analysis/           Teoria dos jogos, modelos de crenca, momentum
 │   ├── coaching/           Pipeline de coaching (COPER, Hibrido, RAG)
-│   ├── data_sources/       Parser de demos, HLTV, Steam, APIs Faceit
+│   ├── data_sources/       Parser de demos, estatísticas pro HLTV, Steam, APIs Faceit
 │   ├── knowledge/          Base de conhecimento RAG, banco de experiencias COPER
 │   ├── nn/                 Redes neurais (6 tipos de modelo)
 │   ├── processing/         Feature engineering, baselines, validacao
 │   ├── services/           Camada de servicos (Coaching, Analise, Ollama)
 │   └── storage/            Banco de dados SQLite, modelos, backup
 ├── core/                   Motor de sessao, gerenciamento de assets, dados espaciais
-├── ingestion/              Pipelines de ingestao de demos (HLTV, Steam)
+├── ingestion/              Pipelines de ingestao de demos (Steam)
 ├── observability/          Integridade RASP, telemetria, Sentry
 ├── reporting/              Visualizacao, geracao de PDF
 ├── tests/                  Suite de testes (390+ testes)
@@ -45,7 +45,7 @@ Programma_CS2_RENAN/
 | `apps/qt_app/app.py` | Aplicacao desktop (GUI PySide6/Qt — primaria) |
 | `apps/desktop_app/main.py` | Aplicacao desktop (GUI Kivy — legacy fallback) |
 | `run_ingestion.py` | Pipeline de ingestao de demos |
-| `fetch_hltv_stats.py` | Scraping de metadados profissionais HLTV |
+| `fetch_hltv_stats.py` | Scraping de estatísticas de jogadores profissionais HLTV |
 | `hltv_sync_service.py` | Daemon de sincronizacao HLTV |
 
 ## Stack Tecnologico

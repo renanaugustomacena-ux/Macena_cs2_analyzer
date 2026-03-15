@@ -15,6 +15,7 @@ from PySide6.QtWidgets import (
 )
 
 from Programma_CS2_RENAN.apps.qt_app.core.app_state import get_app_state
+from Programma_CS2_RENAN.apps.qt_app.core.i18n_bridge import i18n
 from Programma_CS2_RENAN.core.config import get_setting, save_user_setting
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
@@ -57,10 +58,10 @@ class HomeScreen(QWidget):
         root.setSpacing(12)
 
         # Title
-        title = QLabel("Dashboard")
-        title.setObjectName("section_title")
-        title.setFont(QFont("Roboto", 20, QFont.Bold))
-        root.addWidget(title)
+        self._title_label = QLabel(i18n.get_text("dashboard"))
+        self._title_label.setObjectName("section_title")
+        self._title_label.setFont(QFont("Roboto", 20, QFont.Bold))
+        root.addWidget(self._title_label)
 
         # Status bar
         self._status_bar = self._build_status_bar()
@@ -114,13 +115,13 @@ class HomeScreen(QWidget):
     # ── Card 1: Demo Analysis ──
 
     def _build_demo_card(self):
-        card = self._make_card("Demo Analysis")
+        card, self._demo_card_title = self._make_card("demo_analysis")
         layout = card.layout()
 
-        desc = QLabel("Select your demo folder to analyze your matches.")
-        desc.setWordWrap(True)
-        desc.setStyleSheet("color: #a0a0b0; font-size: 13px;")
-        layout.addWidget(desc)
+        self._demo_desc = QLabel(i18n.get_text("demo_analysis_desc"))
+        self._demo_desc.setWordWrap(True)
+        self._demo_desc.setStyleSheet("color: #a0a0b0; font-size: 13px;")
+        layout.addWidget(self._demo_desc)
 
         path_row = QHBoxLayout()
         path_row.setSpacing(8)
@@ -140,24 +141,24 @@ class HomeScreen(QWidget):
         self._parsing_bar.setFixedHeight(18)
         layout.addWidget(self._parsing_bar)
 
-        btn = QPushButton("Select Demo Folder")
-        btn.setCursor(Qt.PointingHandCursor)
-        btn.setFixedWidth(180)
-        btn.clicked.connect(self._pick_demo_folder)
-        layout.addWidget(btn)
+        self._demo_btn = QPushButton(i18n.get_text("select_demo_folder"))
+        self._demo_btn.setCursor(Qt.PointingHandCursor)
+        self._demo_btn.setFixedWidth(180)
+        self._demo_btn.clicked.connect(self._pick_demo_folder)
+        layout.addWidget(self._demo_btn)
 
         self._cards_layout.addWidget(card)
 
     # ── Card 2: Pro Ingestion Hub ──
 
     def _build_pro_card(self):
-        card = self._make_card("Pro Demo Ingestion")
+        card, self._pro_card_title = self._make_card("pro_demo_ingestion")
         layout = card.layout()
 
-        desc = QLabel("Ingest professional demo files to build the coaching baseline.")
-        desc.setWordWrap(True)
-        desc.setStyleSheet("color: #a0a0b0; font-size: 13px;")
-        layout.addWidget(desc)
+        self._pro_desc = QLabel(i18n.get_text("pro_demo_ingestion_desc"))
+        self._pro_desc.setWordWrap(True)
+        self._pro_desc.setStyleSheet("color: #a0a0b0; font-size: 13px;")
+        layout.addWidget(self._pro_desc)
 
         path_row = QHBoxLayout()
         path_row.setSpacing(8)
@@ -196,26 +197,26 @@ class HomeScreen(QWidget):
     # ── Card 3: API & Profile Connectivity ──
 
     def _build_connectivity_card(self):
-        card = self._make_card("API & Profile Connectivity")
+        card, self._conn_card_title = self._make_card("connectivity")
         layout = card.layout()
 
         btn_row = QHBoxLayout()
         btn_row.setSpacing(12)
 
-        profile_btn = QPushButton("Player Profile")
-        profile_btn.setCursor(Qt.PointingHandCursor)
-        profile_btn.clicked.connect(lambda: self._navigate("user_profile"))
-        btn_row.addWidget(profile_btn)
+        self._profile_btn = QPushButton(i18n.get_text("profile"))
+        self._profile_btn.setCursor(Qt.PointingHandCursor)
+        self._profile_btn.clicked.connect(lambda: self._navigate("user_profile"))
+        btn_row.addWidget(self._profile_btn)
 
-        steam_btn = QPushButton("Steam Config")
-        steam_btn.setCursor(Qt.PointingHandCursor)
-        steam_btn.clicked.connect(lambda: self._navigate("steam_config"))
-        btn_row.addWidget(steam_btn)
+        self._steam_btn = QPushButton(i18n.get_text("steam_config"))
+        self._steam_btn.setCursor(Qt.PointingHandCursor)
+        self._steam_btn.clicked.connect(lambda: self._navigate("steam_config"))
+        btn_row.addWidget(self._steam_btn)
 
-        faceit_btn = QPushButton("FaceIT Config")
-        faceit_btn.setCursor(Qt.PointingHandCursor)
-        faceit_btn.clicked.connect(lambda: self._navigate("faceit_config"))
-        btn_row.addWidget(faceit_btn)
+        self._faceit_btn = QPushButton(i18n.get_text("faceit_config"))
+        self._faceit_btn.setCursor(Qt.PointingHandCursor)
+        self._faceit_btn.clicked.connect(lambda: self._navigate("faceit_config"))
+        btn_row.addWidget(self._faceit_btn)
 
         btn_row.addStretch()
         layout.addLayout(btn_row)
@@ -225,26 +226,26 @@ class HomeScreen(QWidget):
     # ── Card 4: Tactical Analysis ──
 
     def _build_tactical_card(self):
-        card = self._make_card("Tactical Analysis")
+        card, self._tact_card_title = self._make_card("tactical_analysis")
         layout = card.layout()
 
-        desc = QLabel("Open the 2D tactical viewer to review round replays and positioning.")
-        desc.setWordWrap(True)
-        desc.setStyleSheet("color: #a0a0b0; font-size: 13px;")
-        layout.addWidget(desc)
+        self._tact_desc = QLabel(i18n.get_text("tactical_desc"))
+        self._tact_desc.setWordWrap(True)
+        self._tact_desc.setStyleSheet("color: #a0a0b0; font-size: 13px;")
+        layout.addWidget(self._tact_desc)
 
-        btn = QPushButton("Open Tactical Viewer")
-        btn.setEnabled(False)
-        btn.setToolTip(_DISABLED_TIP_VIEWER)
-        btn.setFixedWidth(200)
-        layout.addWidget(btn)
+        self._tact_btn = QPushButton(i18n.get_text("open_tactical_viewer"))
+        self._tact_btn.setCursor(Qt.PointingHandCursor)
+        self._tact_btn.setFixedWidth(200)
+        self._tact_btn.clicked.connect(lambda: self._navigate("tactical_viewer"))
+        layout.addWidget(self._tact_btn)
 
         self._cards_layout.addWidget(card)
 
     # ── Training Status Card (hidden until training active) ──
 
     def _build_training_card(self):
-        self._training_card = self._make_card("Training Status")
+        self._training_card, self._training_card_title = self._make_card("training_status")
         layout = self._training_card.layout()
 
         self._epoch_label = QLabel("Epoch: 0 / 0")
@@ -268,21 +269,41 @@ class HomeScreen(QWidget):
 
     # ── Helpers ──
 
-    def _make_card(self, title: str) -> QFrame:
+    def _make_card(self, i18n_key: str) -> tuple[QFrame, QLabel]:
         card = QFrame()
         card.setObjectName("dashboard_card")
         layout = QVBoxLayout(card)
         layout.setSpacing(8)
-        lbl = QLabel(title)
+        lbl = QLabel(i18n.get_text(i18n_key))
         lbl.setFont(QFont("Roboto", 14, QFont.Bold))
         lbl.setStyleSheet("color: #dcdcdc;")
         layout.addWidget(lbl)
-        return card
+        return card, lbl
 
     def _navigate(self, screen_name: str):
         win = self.window()
         if win and hasattr(win, "switch_screen"):
             win.switch_screen(screen_name)
+
+    def retranslate(self):
+        """Update all translatable text when language changes."""
+        self._title_label.setText(i18n.get_text("dashboard"))
+        # Card titles
+        self._demo_card_title.setText(i18n.get_text("demo_analysis"))
+        self._pro_card_title.setText(i18n.get_text("pro_demo_ingestion"))
+        self._conn_card_title.setText(i18n.get_text("connectivity"))
+        self._tact_card_title.setText(i18n.get_text("tactical_analysis"))
+        self._training_card_title.setText(i18n.get_text("training_status"))
+        # Descriptions
+        self._demo_desc.setText(i18n.get_text("demo_analysis_desc"))
+        self._pro_desc.setText(i18n.get_text("pro_demo_ingestion_desc"))
+        self._tact_desc.setText(i18n.get_text("tactical_desc"))
+        # Buttons
+        self._demo_btn.setText(i18n.get_text("select_demo_folder"))
+        self._tact_btn.setText(i18n.get_text("open_tactical_viewer"))
+        self._profile_btn.setText(i18n.get_text("profile"))
+        self._steam_btn.setText(i18n.get_text("steam_config"))
+        self._faceit_btn.setText(i18n.get_text("faceit_config"))
 
     def _pick_demo_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Demo Folder")

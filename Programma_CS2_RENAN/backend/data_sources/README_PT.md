@@ -23,14 +23,14 @@ Integrações de fontes de dados externas para análise de demos, estatísticas 
 - **faceit_integration.py** — `FaceitIntegration` — Orquestração de ingestão de dados FACEIT de alto nível
 
 ### Integração HLTV
-- **hltv_metadata.py** — `HLTVMetadata` — Extração de metadados de partidas HLTV (nome do evento, times, data)
-- **hltv_scraper.py** — `HLTVScraper` — Scraper HLTV baseado em Playwright para dados de partidas profissionais
+- **hltv_metadata.py** — `HLTVMetadata` — Módulo legado (veja pacote hltv/ para implementação ativa)
+- **hltv_scraper.py** — `HLTVScraper` — Coleta estatísticas de jogadores profissionais do hltv.org (Rating 2.0, K/D, ADR, KAST, HS%)
 
 ## Fluxo de Dados
 1. Demos ingeridas via `demo_parser.py` → validadas por `demo_format_adapter.py`
 2. Perfis Steam/FACEIT sincronizados via respectivos módulos de API
-3. Metadados HLTV enriquecem contexto de demos profissionais
+3. Estatísticas de jogadores profissionais HLTV fornecem o baseline de coaching para comparar desempenho do usuário contra os pros
 4. Trade kills detectados pós-análise para análise tática
 
 ## Dependências
-demoparser2, Playwright (HLTV), requests (APIs Steam/FACEIT).
+demoparser2, FlareSolverr/Docker (estatísticas pro HLTV), requests (APIs Steam/FACEIT).

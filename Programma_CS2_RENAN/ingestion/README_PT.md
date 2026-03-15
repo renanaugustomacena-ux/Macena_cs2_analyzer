@@ -2,7 +2,7 @@
 
 > **[English](README.md)** | **[Italiano](README_IT.md)** | **[Português](README_PT.md)**
 
-Infraestrutura de ingestão de demos para demos CS2 profissionais e de usuário com scraping HLTV, integração Steam e enriquecimento estatístico em nível de round.
+Infraestrutura de ingestão de demos para demos CS2 profissionais e de usuário com integração Steam e enriquecimento estatístico em nível de round.
 
 ## Componentes Principais
 
@@ -19,11 +19,12 @@ Infraestrutura de ingestão de demos para demos CS2 profissionais e de usuário 
 - Parsing de registro (Windows) e varredura de sistema de arquivos
 - Auto-detecção de pasta de demos
 
-**`hltv_orchestrator.py`** — Orquestrador de sincronização de dados HLTV
-- Coordena scraping de metadados para partidas profissionais
+**`hltv_orchestrator.py`** — Orquestrador de sincronização de estatísticas de jogadores profissionais HLTV
+- Coordena scraping de estatísticas de jogadores profissionais do hltv.org (Rating 2.0, K/D, ADR, etc.)
 - Aplicação de rate limiting
 - Gerenciamento de cache
 - Ciclo de vida de automação de navegador
+- **NOTA:** Isto NÃO lida com arquivos de demo ou metadados de demo — apenas estatísticas de jogadores profissionais
 
 **`downloader.py`** — Downloader de arquivo demo
 - Download HTTP/HTTPS com lógica de retry
@@ -46,7 +47,7 @@ Infraestrutura de ingestão de demos para demos CS2 profissionais e de usuário 
 - Persistência em tabelas RoundStats + PlayerMatchStats
 
 **`pro_ingest.py`** — Pipeline de ingestão de demo profissional
-- Parsing de demos profissionais com integração de metadados HLTV
+- Parsing de demos profissionais com enriquecimento estatístico em nível de round
 - Enriquecimento estatístico em nível de round
 - Geração de registros de conhecimento para sistema RAG
 - Atualização de baseline estatística profissional

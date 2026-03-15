@@ -6,6 +6,12 @@ Maps to user-provided 13-pillar framework.
 import os
 import re
 import sqlite3
+import sys
+
+# --- Venv Guard ---
+if sys.prefix == sys.base_prefix and not os.environ.get("CI"):
+    print("ERROR: Not in venv. Run: source ~/.venvs/cs2analyzer/bin/activate", file=sys.stderr)
+    sys.exit(2)
 
 STORAGE_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
@@ -439,7 +445,7 @@ def main():
     # SECTION 8: HLTV DATABASE CHECK
     # ===========================================================================
     print("\n" + "=" * 70)
-    print("SECTION 8: HLTV METADATA DATABASE")
+    print("SECTION 8: HLTV PRO STATISTICS DATABASE")
     print("=" * 70)
 
     if os.path.exists(HLTV_DB):

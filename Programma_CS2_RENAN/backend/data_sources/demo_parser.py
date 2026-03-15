@@ -398,7 +398,7 @@ def parse_sequential_ticks(
             "is_blinded",
             # Equipment & Economy
             "weapon_name",
-            "equipment_value",
+            "current_equip_value",
             "balance",
             "total_cash_spent",
             "cash_spent_this_round",
@@ -460,6 +460,10 @@ def parse_sequential_ticks(
         # rename to "active_weapon" for downstream compatibility.
         if "weapon_name" in df.columns:
             renames["weapon_name"] = "active_weapon"
+        # demoparser2 uses "current_equip_value" (not "equipment_value");
+        # rename for downstream compatibility with DB schema and feature extractor.
+        if "current_equip_value" in df.columns:
+            renames["current_equip_value"] = "equipment_value"
         if renames:
             df = df.rename(columns=renames)
 

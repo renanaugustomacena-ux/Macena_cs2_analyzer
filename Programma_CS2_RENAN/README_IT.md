@@ -24,14 +24,14 @@ Programma_CS2_RENAN/
 ├── backend/                Livello logica di business
 │   ├── analysis/           Teoria dei giochi, modelli di credenza, momentum
 │   ├── coaching/           Pipeline coaching (COPER, Ibrido, RAG)
-│   ├── data_sources/       Parser demo, HLTV, Steam, API Faceit
+│   ├── data_sources/       Parser demo, statistiche pro HLTV, Steam, API Faceit
 │   ├── knowledge/          Base di conoscenza RAG, banca esperienze COPER
 │   ├── nn/                 Reti neurali (6 tipi di modello)
 │   ├── processing/         Feature engineering, baseline, validazione
 │   ├── services/           Livello servizi (Coaching, Analisi, Ollama)
 │   └── storage/            Database SQLite, modelli, backup
 ├── core/                   Motore sessione, gestione asset, dati spaziali
-├── ingestion/              Pipeline ingestione demo (HLTV, Steam)
+├── ingestion/              Pipeline ingestione demo (Steam)
 ├── observability/          Integrita RASP, telemetria, Sentry
 ├── reporting/              Visualizzazione, generazione PDF
 ├── tests/                  Suite di test (390+ test)
@@ -45,7 +45,7 @@ Programma_CS2_RENAN/
 | `apps/qt_app/app.py` | Applicazione desktop (GUI PySide6/Qt — primaria) |
 | `apps/desktop_app/main.py` | Applicazione desktop (GUI Kivy — legacy fallback) |
 | `run_ingestion.py` | Pipeline di ingestione demo |
-| `fetch_hltv_stats.py` | Scraping metadati professionali HLTV |
+| `fetch_hltv_stats.py` | Scraping statistiche giocatori professionisti HLTV |
 | `hltv_sync_service.py` | Daemon di sincronizzazione HLTV |
 
 ## Stack Tecnologico

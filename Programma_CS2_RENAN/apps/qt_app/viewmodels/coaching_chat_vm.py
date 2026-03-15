@@ -39,6 +39,16 @@ class CoachingChatViewModel(QObject):
 
     # ── Public API ──
 
+    def check_and_start(self, player_name: str, demo_name: str | None = None):
+        """Check availability, then start session if available (no race condition)."""
+        self._pending_player = player_name
+        self._pending_demo = demo_name
+        self._ensure_engine()
+        worker = Worker(self._bg_check)
+        worker.signals.result.connect(self._on_availability_then_start)
+        worker.signals.error.connect(self._on_error)
+        QThreadPool.globalInstance().start(worker)
+
     def check_availability(self):
         self._ensure_engine()
         worker = Worker(self._bg_check)
@@ -98,6 +108,26 @@ class CoachingChatViewModel(QObject):
     def _on_availability(self, available):
         self.is_available_changed.emit(bool(available))
 
+    def _on_availability_then_start(self, available):
+        self.is_available_changed.emit(bool(available))
+        if available and not self._session_active:
+            player = getattr(self, "_pending_player", "")
+            demo = getattr(self, "_pending_demo", None)
+            if player:
+                self.start_session(player, demo)
+        elif not available:
+            # Show a system message so the user knows why chat won't work
+            with self._lock:
+                self._messages.append({
+                    "role": "system",
+                    "content": (
+                        "Coach is offline. Make sure Ollama is running:\n"
+                        "  1. ollama serve\n"
+                        "  2. ollama pull llama3.2:3b"
+                    ),
+                })
+            self.messages_changed.emit(list(self._messages))
+
     def _on_session_started(self, opening):
         if opening:
             with self._lock:
@@ -116,4 +146,10 @@ class CoachingChatViewModel(QObject):
 
     def _on_error(self, msg):
         logger.error("coaching_chat_vm error: %s", msg)
+        with self._lock:
+            self._messages.append({
+                "role": "system",
+                "content": f"Error: {msg}",
+            })
+        self.messages_changed.emit(list(self._messages))
         self.is_loading_changed.emit(False)

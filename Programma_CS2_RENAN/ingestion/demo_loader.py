@@ -352,7 +352,7 @@ class DemoLoader:
             "mvps",
             "is_crouching",
             "is_scoped",
-            "equipment_value",
+            "current_equip_value",
         ]
 
         round_starts = []
@@ -376,6 +376,11 @@ class DemoLoader:
                 app_logger.debug("First row dict: %s", rows_df.iloc[0].to_dict())
         except Exception as e:
             app_logger.error("Error parsing ticks in Pass 3: %s", e)
+
+        # Rename demoparser2's "current_equip_value" → "equipment_value" for
+        # downstream compatibility with PlayerState and fill maps.
+        if "current_equip_value" in rows_df.columns:
+            rows_df = rows_df.rename(columns={"current_equip_value": "equipment_value"})
 
         # D-26: Pre-vectorize columns to minimize per-row Python overhead.
         # Iterates ~172K tick groups instead of ~1.7M individual rows.
@@ -468,7 +473,7 @@ class DemoLoader:
                             weapon=active_weapon,
                             is_crouching=bool(getattr(row, "is_crouching", False)),
                             is_scoped=bool(getattr(row, "is_scoped", False)),
-                            equipment_value=int(row.equipment_value),
+                            equipment_value=int(getattr(row, "equipment_value", 0)),
                             money=int(row.money_resolved),
                             kills=int(row.kills_total),
                             deaths=int(row.deaths_total),

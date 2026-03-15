@@ -305,7 +305,7 @@ def _compute_enemies_visible(
         positions_x = group["X"].values.astype(np.float64)
         positions_y = group["Y"].values.astype(np.float64)
         yaws = group["yaw"].values.astype(np.float64)
-        teams = group["team_name"].values
+        teams = np.asarray(group["team_name"].values)
         alive = group["is_alive"].values.astype(bool)
 
         n_players = len(group)

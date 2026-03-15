@@ -19,7 +19,7 @@ Demo file ingestion pipelines for different data sources: user demos, profession
 ### `pro_ingest.py`
 - **`ingest_pro_demos()`** — Professional demo processing pipeline
 - Sources demos from `PRO_DEMO_PATH` directory
-- HLTV metadata enrichment via `HLTVApiService` (player names, team compositions, tournament context)
+- Pro baseline statistical enrichment via `round_stats_builder` (per-round HLTV 2.0 rating calculation, noscope/blind kills, flash assists)
 - **Round stats enrichment**: Same as user pipeline — `enrich_from_demo()` populates `RoundStats`
 - Populates `ProPlayer`, `MatchResult`, `TeamComposition` tables
 - Generates tactical knowledge records for RAG retrieval
@@ -37,7 +37,7 @@ All pipelines follow this flow:
 1. **Discovery**: Scan source directory for unprocessed files
 2. **Validation**: Check file integrity, format, schema
 3. **Parsing**: Extract structured data via demo parser
-4. **Enrichment**: Round stats, HLTV metadata, spatial data
+4. **Enrichment**: Round stats, spatial data
 5. **Persistence**: Atomic DB writes with rollback on error
 6. **Registration**: Mark file as processed in `DemoFileRecord` registry
 

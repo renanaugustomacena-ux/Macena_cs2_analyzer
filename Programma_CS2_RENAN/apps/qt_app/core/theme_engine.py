@@ -125,12 +125,12 @@ class ThemeEngine:
         qss_file = _THEMES_DIR / f"{name.lower().replace('.', '')}.qss"
         if qss_file.exists():
             qss = qss_file.read_text(encoding="utf-8")
-            # Inject font-family so it overrides hardcoded setFont() calls
+            # Append font rule AFTER QSS so it wins the cascade (same specificity, last wins)
             font_rule = (
-                f'* {{ font-family: "{self._font_family}"; '
+                f'\nQWidget {{ font-family: "{self._font_family}", "Segoe UI", "Arial", sans-serif; '
                 f'font-size: {self._font_size}px; }}\n'
             )
-            target.setStyleSheet(font_rule + qss)
+            target.setStyleSheet(qss + font_rule)
 
         # Set QPalette for widgets that don't use QSS
         palette_data = PALETTES[name]

@@ -46,8 +46,11 @@ class HelpSystem:
         return self._cache.get(topic_id)
 
     def get_all_topics(self):
-        """Returns a list of dicts {id, title} for the menu."""
-        return [{"id": k, "title": v["title"]} for k, v in self._cache.items()]
+        """Returns a list of dicts {id, title, content} for the menu."""
+        return [
+            {"id": k, "title": v["title"], "content": v.get("content", "")}
+            for k, v in self._cache.items()
+        ]
 
     def search_topics(self, query):
         """Simple text search across titles and content."""

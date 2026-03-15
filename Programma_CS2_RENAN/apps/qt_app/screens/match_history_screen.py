@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from Programma_CS2_RENAN.apps.qt_app.core.i18n_bridge import i18n
 from Programma_CS2_RENAN.apps.qt_app.core.theme_engine import rating_color, rating_label
 from Programma_CS2_RENAN.apps.qt_app.viewmodels.match_history_vm import MatchHistoryViewModel
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
@@ -108,10 +109,10 @@ class MatchHistoryScreen(QWidget):
         layout.setSpacing(8)
 
         # Title
-        title = QLabel("Match History")
-        title.setObjectName("section_title")
-        title.setFont(QFont("Roboto", 20, QFont.Bold))
-        layout.addWidget(title)
+        self._title_label = QLabel(i18n.get_text("match_history_title"))
+        self._title_label.setObjectName("section_title")
+        self._title_label.setFont(QFont("Roboto", 20, QFont.Bold))
+        layout.addWidget(self._title_label)
 
         # Status label (loading / error / empty)
         self._status = QLabel("")
@@ -131,6 +132,10 @@ class MatchHistoryScreen(QWidget):
         self._container_layout.addStretch()
         scroll.setWidget(self._container)
         layout.addWidget(scroll, 1)
+
+    def retranslate(self):
+        """Update all translatable text when language changes."""
+        self._title_label.setText(i18n.get_text("match_history_title"))
 
     def on_enter(self):
         self._show_status("Loading matches...")

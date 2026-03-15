@@ -9,8 +9,6 @@
 QWidget {
     background-color: transparent;
     color: #dcdcdc;
-    font-family: "Roboto", "Segoe UI", "Arial", sans-serif;
-    font-size: 13px;
 }
 
 QMainWindow {

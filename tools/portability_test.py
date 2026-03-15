@@ -165,7 +165,7 @@ class PortabilityVerifier:
     REQUIRED_FILES = [
         "Programma_CS2_RENAN/core/config.py",
         "Programma_CS2_RENAN/core/localization.py",
-        "Programma_CS2_RENAN/apps/desktop_app/layout.kv",
+        "Programma_CS2_RENAN/apps/qt_app/app.py",
         "requirements.txt",
     ]
 

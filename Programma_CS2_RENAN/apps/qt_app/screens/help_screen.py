@@ -14,6 +14,7 @@ from PySide6.QtWidgets import (
     QWidget,
 )
 
+from Programma_CS2_RENAN.apps.qt_app.core.i18n_bridge import i18n
 from Programma_CS2_RENAN.observability.logger_setup import get_logger
 
 logger = get_logger("cs2analyzer.qt_help")
@@ -96,7 +97,7 @@ _FALLBACK_TOPICS = [
             "- Coach: AI coaching insights and chat\n"
             "- Match History: Browse analyzed demos\n"
             "- Performance: Advanced analytics and stats\n"
-            "- Tactical Viewer: 2D replay viewer (coming soon)\n"
+            "- Tactical Viewer: 2D demo replay viewer\n"
             "- Settings: Theme, fonts, paths, language\n"
             "- Help: This screen"
         ),
@@ -134,6 +135,14 @@ class HelpScreen(QWidget):
         """Load topics when screen becomes visible."""
         self._load_topics()
 
+    def retranslate(self):
+        """Update all translatable text when language changes."""
+        self._title_label.setText(i18n.get_text("help_center"))
+        self._search_input.setPlaceholderText(i18n.get_text("search_placeholder"))
+        # Reset content label only if no topic is selected
+        if self._topic_list.currentItem() is None:
+            self._content_label.setText(i18n.get_text("select_topic"))
+
     # ── UI ──
 
     def _build_ui(self):
@@ -141,9 +150,10 @@ class HelpScreen(QWidget):
         layout.setContentsMargins(16, 16, 16, 16)
         layout.setSpacing(12)
 
-        self._title_label = QLabel("Help Center")
+        self._title_label = QLabel(i18n.get_text("help_center"))
         self._title_label.setObjectName("section_title")
-        self._title_label.setFont(QFont("Roboto", 20, QFont.Bold))
+        self._title_label.setFont(QFont("Roboto", 22, QFont.Bold))
+        self._title_label.setStyleSheet("color: #ffffff;")
         layout.addWidget(self._title_label)
 
         # Two-panel layout
@@ -158,12 +168,17 @@ class HelpScreen(QWidget):
         left_layout.setSpacing(8)
 
         self._search_input = QLineEdit()
-        self._search_input.setPlaceholderText("Search...")
+        self._search_input.setPlaceholderText(i18n.get_text("search_placeholder"))
         self._search_input.textChanged.connect(self._on_search)
         left_layout.addWidget(self._search_input)
 
         self._topic_list = QListWidget()
         self._topic_list.setObjectName("help_topic_list")
+        self._topic_list.setStyleSheet(
+            "QListWidget { font-size: 15px; }"
+            "QListWidget::item { padding: 8px 12px; }"
+            "QListWidget::item:selected { background: #2a2a3a; color: #ffffff; }"
+        )
         self._topic_list.currentItemChanged.connect(self._on_topic_selected)
         left_layout.addWidget(self._topic_list, 1)
 
@@ -174,12 +189,13 @@ class HelpScreen(QWidget):
         right_scroll.setWidgetResizable(True)
         right_scroll.setFrameShape(QFrame.NoFrame)
 
-        self._content_label = QLabel("Select a topic from the list.")
+        self._content_label = QLabel(i18n.get_text("select_topic"))
         self._content_label.setWordWrap(True)
         self._content_label.setAlignment(Qt.AlignTop | Qt.AlignLeft)
         self._content_label.setTextInteractionFlags(Qt.TextSelectableByMouse)
+        self._content_label.setFont(QFont("Roboto", 14))
         self._content_label.setStyleSheet(
-            "color: #dcdcdc; font-size: 14px; padding: 12px; "
+            "color: #e0e0e0; line-height: 1.6; padding: 16px; "
             "background: transparent;"
         )
         right_scroll.setWidget(self._content_label)
@@ -218,7 +234,7 @@ class HelpScreen(QWidget):
         if current is None:
             return
         topic = current.data(Qt.UserRole)
-        self._title_label.setText(topic.get("title", "Help Center"))
+        self._title_label.setText(topic.get("title", i18n.get_text("help_center")))
         self._content_label.setText(topic.get("content", ""))
 
     def _on_search(self, text: str):

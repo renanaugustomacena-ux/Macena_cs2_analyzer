@@ -16,6 +16,7 @@ from PySide6.QtWidgets import (
 )
 
 from Programma_CS2_RENAN.apps.qt_app.core.app_state import get_app_state
+from Programma_CS2_RENAN.apps.qt_app.core.i18n_bridge import i18n
 from Programma_CS2_RENAN.apps.qt_app.viewmodels.coach_vm import CoachViewModel
 from Programma_CS2_RENAN.apps.qt_app.viewmodels.coaching_chat_vm import (
     CoachingChatViewModel,
@@ -62,6 +63,16 @@ class CoachScreen(QWidget):
             self._state_connected = True
         self._coach_vm.load_insights()
 
+    def retranslate(self):
+        """Update all translatable text when language changes."""
+        self._title_label.setText(i18n.get_text("rap_coach_dashboard"))
+        self._belief_card_title.setText(i18n.get_text("belief_state"))
+        self._belief_desc_label.setText(i18n.get_text("belief_desc"))
+        self._insights_card_title.setText(i18n.get_text("recent_insights"))
+        self._analytics_card_title.setText(i18n.get_text("advanced_analytics"))
+        self._typing_label.setText(i18n.get_text("coach_thinking"))
+        self._chat_input.setPlaceholderText(i18n.get_text("ask_your_coach"))
+
     # ── UI Construction ──
 
     def _build_ui(self):
@@ -81,10 +92,10 @@ class CoachScreen(QWidget):
         # Title row with chat toggle
         title_row = QHBoxLayout()
         title_row.setSpacing(12)
-        title = QLabel("AI Coach")
-        title.setObjectName("section_title")
-        title.setFont(QFont("Roboto", 20, QFont.Bold))
-        title_row.addWidget(title)
+        self._title_label = QLabel(i18n.get_text("rap_coach_dashboard"))
+        self._title_label.setObjectName("section_title")
+        self._title_label.setFont(QFont("Roboto", 20, QFont.Bold))
+        title_row.addWidget(self._title_label)
         title_row.addStretch()
 
         self._chat_toggle_btn = QPushButton("Chat")
@@ -115,13 +126,13 @@ class CoachScreen(QWidget):
     # ── Belief Confidence ──
 
     def _build_belief_card(self):
-        card = self._make_card("Active Belief State")
+        card, self._belief_card_title = self._make_card("belief_state")
         layout = card.layout()
 
-        desc = QLabel("Model confidence based on analyzed data volume and pattern consistency.")
-        desc.setWordWrap(True)
-        desc.setStyleSheet("color: #a0a0b0; font-size: 13px;")
-        layout.addWidget(desc)
+        self._belief_desc_label = QLabel(i18n.get_text("belief_desc"))
+        self._belief_desc_label.setWordWrap(True)
+        self._belief_desc_label.setStyleSheet("color: #a0a0b0; font-size: 13px;")
+        layout.addWidget(self._belief_desc_label)
 
         self._belief_bar = QProgressBar()
         self._belief_bar.setRange(0, 100)
@@ -138,10 +149,10 @@ class CoachScreen(QWidget):
     # ── Insights Card ──
 
     def _build_insights_card(self):
-        card = self._make_card("Recent Insights")
+        card, self._insights_card_title = self._make_card("recent_insights")
         self._insights_container = card.layout()
 
-        self._insights_placeholder = QLabel("Loading insights...")
+        self._insights_placeholder = QLabel(i18n.get_text("loading_insights"))
         self._insights_placeholder.setStyleSheet("color: #a0a0b0; font-size: 13px;")
         self._insights_placeholder.setAlignment(Qt.AlignCenter)
         self._insights_container.addWidget(self._insights_placeholder)
@@ -151,7 +162,7 @@ class CoachScreen(QWidget):
     # ── Analytics Placeholder ──
 
     def _build_analytics_placeholder(self):
-        card = self._make_card("Advanced Analytics")
+        card, self._analytics_card_title = self._make_card("advanced_analytics")
         layout = card.layout()
         lbl = QLabel(
             "Trend graphs and radar charts will appear here after demo analysis.\n"
@@ -225,7 +236,7 @@ class CoachScreen(QWidget):
         layout.addWidget(msg_scroll, 1)
 
         # Typing indicator
-        self._typing_label = QLabel("Coach is thinking...")
+        self._typing_label = QLabel(i18n.get_text("coach_thinking"))
         self._typing_label.setStyleSheet("color: #a0a0b0; font-size: 12px; border: none;")
         self._typing_label.setVisible(False)
         layout.addWidget(self._typing_label)
@@ -251,7 +262,7 @@ class CoachScreen(QWidget):
         input_row = QHBoxLayout()
         input_row.setSpacing(8)
         self._chat_input = QLineEdit()
-        self._chat_input.setPlaceholderText("Ask your coach...")
+        self._chat_input.setPlaceholderText(i18n.get_text("ask_your_coach"))
         self._chat_input.setStyleSheet("border: none;")
         self._chat_input.returnPressed.connect(self._send_message)
         input_row.addWidget(self._chat_input, 1)
@@ -267,16 +278,16 @@ class CoachScreen(QWidget):
 
     # ── Helpers ──
 
-    def _make_card(self, title: str) -> QFrame:
+    def _make_card(self, i18n_key: str) -> tuple[QFrame, QLabel]:
         card = QFrame()
         card.setObjectName("dashboard_card")
         layout = QVBoxLayout(card)
         layout.setSpacing(8)
-        lbl = QLabel(title)
+        lbl = QLabel(i18n.get_text(i18n_key))
         lbl.setFont(QFont("Roboto", 14, QFont.Bold))
         lbl.setStyleSheet("color: #dcdcdc;")
         layout.addWidget(lbl)
-        return card
+        return card, lbl
 
     def _scroll_chat_bottom(self):
         QTimer.singleShot(50, lambda: self._msg_scroll.verticalScrollBar().setValue(
@@ -290,10 +301,11 @@ class CoachScreen(QWidget):
         self._chat_panel.setVisible(self._chat_open)
 
         if self._chat_open:
-            self._chat_vm.check_availability()
             player = get_setting("CS2_PLAYER_NAME", "")
             if player:
-                self._chat_vm.start_session(player)
+                self._chat_vm.check_and_start(player)
+            else:
+                self._chat_vm.check_availability()
             self._chat_input.setFocus()
 
     def _send_message(self):
@@ -391,11 +403,24 @@ class CoachScreen(QWidget):
                 w.deleteLater()
 
         for msg in messages:
-            is_user = msg.get("role") == "user"
+            role = msg.get("role", "assistant")
+            is_user = role == "user"
+            is_system = role == "system"
+
+            if is_system:
+                bg_color = "#2a1a1a"
+                text_color = "#ff8888"
+            elif is_user:
+                bg_color = "#1a3366"
+                text_color = "#dcdcdc"
+            else:
+                bg_color = "#181c28"
+                text_color = "#dcdcdc"
+
             bubble = QFrame()
             bubble.setStyleSheet(
                 "QFrame { background: %s; border-radius: 10px; padding: 8px; }"
-                % ("#1a3366" if is_user else "#181c28")
+                % bg_color
             )
             bubble.setMaximumWidth(500)
             b_layout = QVBoxLayout(bubble)
@@ -403,7 +428,7 @@ class CoachScreen(QWidget):
             lbl = QLabel(msg.get("content", ""))
             lbl.setWordWrap(True)
             lbl.setStyleSheet(
-                "color: #dcdcdc; font-size: 13px; background: transparent;"
+                f"color: {text_color}; font-size: 13px; background: transparent;"
             )
             lbl.setTextInteractionFlags(Qt.TextSelectableByMouse)
             b_layout.addWidget(lbl)
@@ -414,6 +439,8 @@ class CoachScreen(QWidget):
             if is_user:
                 wrapper.addStretch()
                 wrapper.addWidget(bubble)
+            elif is_system:
+                wrapper.addWidget(bubble, 1)  # full width for system messages
             else:
                 wrapper.addWidget(bubble)
                 wrapper.addStretch()

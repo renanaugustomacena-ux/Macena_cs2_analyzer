@@ -2959,9 +2959,11 @@ Le tre parti della documentazione formano un sistema interconnesso. Questa mappa
 
 ```mermaid
 flowchart TB
-    subgraph PART1["PARTE 1 — Fondamenta AI"]
+    subgraph PART1A["PARTE 1A — Il Cervello"]
         P1_NN["Sottosistema NN Core<br/>(JEPA, MoE, LSTM)"]
         P1_VL["VL-JEPA Architecture<br/>(16 concepts, 2-stage)"]
+    end
+    subgraph PART1B["PARTE 1B — Sensi e Specialista"]
         P1_RAP["RAP Coach<br/>(strategia, valore, posizione)"]
         P1_DS["Data Sources<br/>(HLTV, Steam, FACEIT, Demo)"]
     end

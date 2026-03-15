@@ -8,8 +8,8 @@ from PySide6.QtCore import QPointF, QRectF, Qt, Signal
 from PySide6.QtGui import QColor, QFont, QFontMetrics, QPainter, QPen, QPixmap, QPolygonF
 from PySide6.QtWidgets import QWidget
 
+from Programma_CS2_RENAN.core.config import get_resource_path
 from Programma_CS2_RENAN.core.demo_frame import NadeType, Team
-from Programma_CS2_RENAN.core.map_manager import MapManager
 from Programma_CS2_RENAN.core.playback_engine import InterpolatedPlayerState
 from Programma_CS2_RENAN.core.spatial_engine import SpatialEngine
 
@@ -91,11 +91,27 @@ class TacticalMapWidget(QWidget):
     # ── Map Loading ──
 
     def _load_map_image(self):
-        path = MapManager.get_map_path(self._map_name)
-        if path and os.path.exists(path):
-            self._map_pixmap = QPixmap(path)
-        else:
-            self._map_pixmap = None
+        """Load map radar image as QPixmap — no Kivy dependency."""
+        clean = self._map_name.lower().strip()
+        clean = clean.replace(".dem", "").replace(".vpk", "").replace("maps/", "")
+
+        maps_dir = get_resource_path(os.path.join("PHOTO_GUI", "maps"))
+
+        # Try exact name, then with de_ prefix
+        for candidate in [clean, f"de_{clean}"]:
+            path = os.path.join(maps_dir, f"{candidate}.png")
+            if os.path.exists(path):
+                self._map_pixmap = QPixmap(path)
+                return
+
+        # Partial match
+        if os.path.isdir(maps_dir):
+            for fname in os.listdir(maps_dir):
+                if clean in fname and fname.endswith(".png"):
+                    self._map_pixmap = QPixmap(os.path.join(maps_dir, fname))
+                    return
+
+        self._map_pixmap = None
 
     # ── Coordinate Transform ──
 
